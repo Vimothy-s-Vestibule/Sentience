@@ -1,5 +1,5 @@
 #![allow(dead_code, unused)]
-
+#![allow(clippy::result_large_err)]
 pub use syl_scr_common::schema::DiscordMessage;
 pub use syl_scr_common::schema::User;
 
