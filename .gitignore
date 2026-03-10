@@ -1,0 +1,23 @@
+# Python-generated files
+**/__pycache__/
+**/*.py[oc]
+**/build/
+**/dist/
+**/wheels/
+**/*.egg-info
+
+# Virtual environments
+**/.venv
+
+# Rust
+**/target
+
+# credentials
+**/*.env
+**/.env
+
+# macOS
+**/.DS_Store
+
+# SQLite DB
+**/*.db

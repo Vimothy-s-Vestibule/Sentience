@@ -1,0 +1,236 @@
+{
+    "id": "resp_01056edf00e221f1006991a7b1a330819f9d102f4ffcc6f4fd",
+    "object": "response",
+    "created_at": 1771153329,
+    "status": "completed",
+    "background": false,
+    "billing": {
+        "payer": "developer"
+    },
+    "completed_at": 1771153364,
+    "error": null,
+    "frequency_penalty": 0.0,
+    "incomplete_details": null,
+    "instructions": null,
+    "max_output_tokens": null,
+    "max_tool_calls": null,
+    "model": "gpt-5-nano-2025-08-07",
+    "output": [
+        {
+            "id": "rs_01056edf00e221f1006991a7b1e8ac819fab9634f9a2b4b7f7",
+            "type": "reasoning",
+            "summary": []
+        },
+        {
+            "id": "msg_01056edf00e221f1006991a7cf6710819f9415f7d81a207672",
+            "type": "message",
+            "status": "completed",
+            "content": [
+                {
+                    "type": "output_text",
+                    "annotations": [],
+                    "logprobs": [],
+                    "text": "{\"communication\":{\"agency\":0.35,\"communion\":0.82},\"interests\":{\"activities\":[\"guitar\",\"problem solving\",\"math study\",\"philosophy reading\",\"linguistics\",\"computer graphics\",\"gaming\"],\"domains\":[\"linguistics\",\"philosophy\",\"mathematics\",\"music\",\"video games\"]},\"personality\":{\"agreeableness\":0.75,\"conscientiousness\":0.85,\"emotionality\":0.55,\"extraversion\":0.55,\"honesty-humility\":0.65,\"openness-to-experience\":0.90},\"user_id\":\"270951201263058940\",\"username\":\"project_alc\",\"values\":{\"achievement\":0.80,\"benevolence\":0.75,\"conformity\":0.40,\"hedonism\":0.30,\"power\":0.25,\"security\":0.40,\"self-direction\":0.90,\"stimulation\":0.85,\"tradition\":0.30,\"universalism\":0.90}}"
+                }
+            ],
+            "role": "assistant"
+        }
+    ],
+    "parallel_tool_calls": true,
+    "presence_penalty": 0.0,
+    "previous_response_id": null,
+    "prompt_cache_key": null,
+    "prompt_cache_retention": null,
+    "reasoning": {
+        "effort": "medium",
+        "summary": null
+    },
+    "safety_identifier": null,
+    "service_tier": "default",
+    "store": true,
+    "temperature": 1.0,
+    "text": {
+        "format": {
+            "type": "json_schema",
+            "description": null,
+            "name": "intro_scoring",
+            "schema": {
+                "$defs": {
+                    "conciseLowercaseTerm": {
+                        "description": "Lowercase concise term, 1\u20133 words max. No punctuation or sentences.",
+                        "maxLength": 32,
+                        "minLength": 2,
+                        "pattern": "^[a-z]+(?: [a-z]+){0,2}$",
+                        "type": "string"
+                    }
+                },
+                "additionalProperties": false,
+                "properties": {
+                    "communication": {
+                        "additionalProperties": false,
+                        "description": "Interpersonal circumplex dimensions.",
+                        "properties": {
+                            "agency": {
+                                "description": "Dominance, assertiveness, conversational control.",
+                                "maximum": 1,
+                                "minimum": 0,
+                                "type": "number"
+                            },
+                            "communion": {
+                                "description": "Warmth, empathy, affiliative orientation.",
+                                "maximum": 1,
+                                "minimum": 0,
+                                "type": "number"
+                            }
+                        },
+                        "required": ["agency", "communion"],
+                        "type": "object"
+                    },
+                    "interests": {
+                        "additionalProperties": false,
+                        "properties": {
+                            "activities": {
+                                "items": {
+                                    "$ref": "#/$defs/conciseLowercaseTerm"
+                                },
+                                "type": "array"
+                            },
+                            "domains": {
+                                "items": {
+                                    "$ref": "#/$defs/conciseLowercaseTerm"
+                                },
+                                "type": "array"
+                            }
+                        },
+                        "required": ["domains", "activities"],
+                        "type": "object"
+                    },
+                    "personality": {
+                        "additionalProperties": false,
+                        "description": "HEXACO personality traits normalized 0\u20131 where 0.5 \u2248 population average percentile.",
+                        "properties": {
+                            "agreeableness": {
+                                "maximum": 1,
+                                "minimum": 0,
+                                "type": "number"
+                            },
+                            "conscientiousness": {
+                                "maximum": 1,
+                                "minimum": 0,
+                                "type": "number"
+                            },
+                            "emotionality": {
+                                "maximum": 1,
+                                "minimum": 0,
+                                "type": "number"
+                            },
+                            "extraversion": {
+                                "maximum": 1,
+                                "minimum": 0,
+                                "type": "number"
+                            },
+                            "honesty-humility": {
+                                "maximum": 1,
+                                "minimum": 0,
+                                "type": "number"
+                            },
+                            "openness-to-experience": {
+                                "maximum": 1,
+                                "minimum": 0,
+                                "type": "number"
+                            }
+                        },
+                        "required": ["honesty-humility", "emotionality", "extraversion", "agreeableness", "conscientiousness", "openness-to-experience"],
+                        "type": "object"
+                    },
+                    "user_id": {
+                        "type": "string"
+                    },
+                    "username": {
+                        "type": "string"
+                    },
+                    "values": {
+                        "additionalProperties": false,
+                        "description": "Schwartz basic human values, normalized importance weights.",
+                        "properties": {
+                            "achievement": {
+                                "maximum": 1,
+                                "minimum": 0,
+                                "type": "number"
+                            },
+                            "benevolence": {
+                                "maximum": 1,
+                                "minimum": 0,
+                                "type": "number"
+                            },
+                            "conformity": {
+                                "maximum": 1,
+                                "minimum": 0,
+                                "type": "number"
+                            },
+                            "hedonism": {
+                                "maximum": 1,
+                                "minimum": 0,
+                                "type": "number"
+                            },
+                            "power": {
+                                "maximum": 1,
+                                "minimum": 0,
+                                "type": "number"
+                            },
+                            "security": {
+                                "maximum": 1,
+                                "minimum": 0,
+                                "type": "number"
+                            },
+                            "self-direction": {
+                                "maximum": 1,
+                                "minimum": 0,
+                                "type": "number"
+                            },
+                            "stimulation": {
+                                "maximum": 1,
+                                "minimum": 0,
+                                "type": "number"
+                            },
+                            "tradition": {
+                                "maximum": 1,
+                                "minimum": 0,
+                                "type": "number"
+                            },
+                            "universalism": {
+                                "maximum": 1,
+                                "minimum": 0,
+                                "type": "number"
+                            }
+                        },
+                        "required": ["self-direction", "stimulation", "hedonism", "achievement", "power", "security", "conformity", "tradition", "benevolence", "universalism"],
+                        "type": "object"
+                    }
+                },
+                "required": ["username", "personality", "communication", "values", "interests", "user_id"],
+                "type": "object"
+            },
+            "strict": true
+        },
+        "verbosity": "medium"
+    },
+    "tool_choice": "auto",
+    "tools": [],
+    "top_logprobs": 0,
+    "top_p": 1.0,
+    "truncation": "disabled",
+    "usage": {
+        "input_tokens": 844,
+        "input_tokens_details": {
+            "cached_tokens": 0
+        },
+        "output_tokens": 3114,
+        "output_tokens_details": {
+            "reasoning_tokens": 2880
+        },
+        "total_tokens": 3958
+    },
+    "user": null,
+    "metadata": {}
+}

@@ -1,0 +1,8 @@
+CREATE TABLE IF NOT EXISTS introduction_messages (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id TEXT NOT NULL UNIQUE,
+  username TEXT NOT NULL,
+  message_id INTEGER,
+  content TEXT,
+  scraped_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
