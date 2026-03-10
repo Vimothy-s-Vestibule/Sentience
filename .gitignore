@@ -21,3 +21,6 @@
 
 # SQLite DB
 **/*.db
+
+# VSCode
+**/.vscode/
