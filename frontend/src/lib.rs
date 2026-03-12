@@ -6,9 +6,78 @@ use thiserror::Error;
 
 pub mod commands;
 pub mod listener;
-pub mod storage;
 
-pub use storage::AppStorage;
+use diesel::prelude::*;
+use diesel_async::{pooled_connection::deadpool::Pool, AsyncPgConnection, RunQueryDsl};
+use std::collections::HashSet;
+use syl_scr_common::diesel_schema::{messages, vestibule_users};
+use syl_scr_common::models::{RecordStatus, VestibuleUserRecord};
+
+pub async fn insert_introduction_message(
+    pool: &Pool<AsyncPgConnection>,
+    message: &DiscordMessage,
+) -> Result<bool, AppError> {
+    let mut conn = pool
+        .get()
+        .await
+        .map_err(|e| AppError::AppError(Box::new(e)))?;
+
+    let exists: i64 = vestibule_users::table
+        .filter(vestibule_users::discord_user_id.eq(&message.user_id))
+        .count()
+        .get_result(&mut conn)
+        .await
+        .map_err(AppError::DatabaseError)?;
+
+    if exists > 0 {
+        return Ok(false);
+    }
+
+    diesel::insert_into(messages::table)
+        .values(message)
+        .execute(&mut conn)
+        .await
+        .map_err(AppError::DatabaseError)?;
+
+    let empty_user = VestibuleUserRecord {
+        discord_user_id: message.user_id.clone(),
+        discord_username: message.username.clone(),
+        intro_message_id: Some(message.message_id.clone()),
+        status: RecordStatus::Pending,
+        ..Default::default()
+    };
+
+    diesel::insert_into(vestibule_users::table)
+        .values(&empty_user)
+        .execute(&mut conn)
+        .await
+        .map_err(AppError::DatabaseError)?;
+
+    diesel::sql_query("SELECT pg_notify('process_user', $1)")
+        .bind::<diesel::sql_types::Text, _>(&empty_user.discord_user_id)
+        .execute(&mut conn)
+        .await
+        .map_err(AppError::DatabaseError)?;
+
+    Ok(true)
+}
+
+pub async fn get_existing_user_ids(
+    pool: &Pool<AsyncPgConnection>,
+) -> Result<HashSet<String>, AppError> {
+    let mut conn = pool
+        .get()
+        .await
+        .map_err(|e| AppError::AppError(Box::new(e)))?;
+
+    let user_ids: Vec<String> = vestibule_users::table
+        .select(vestibule_users::discord_user_id)
+        .load(&mut conn)
+        .await
+        .map_err(AppError::DatabaseError)?;
+
+    Ok(user_ids.into_iter().collect())
+}
 
 #[derive(Error, Debug)]
 pub enum AppError {

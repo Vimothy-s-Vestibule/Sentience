@@ -2,9 +2,7 @@ use serenity::all::{
     ChannelId, Context, CreateCommand, GetMessages, Message, ResolvedOption, RoleId, UserId,
 };
 
-use crate::storage::postgres::PostgresStorage;
 use crate::AppError;
-use crate::AppStorage;
 use syl_scr_common::models::DiscordMessage;
 
 async fn introduction_message_by_user(
@@ -63,7 +61,7 @@ pub async fn run(
     _options: &[ResolvedOption<'_>],
     guild_id: serenity::model::id::GuildId,
     command_user_id: UserId,
-    storage: &PostgresStorage,
+    pool: &diesel_async::pooled_connection::deadpool::Pool<diesel_async::AsyncPgConnection>,
     role_id: RoleId,
     channel_id: ChannelId,
 ) -> Result<String, AppError> {
@@ -73,10 +71,7 @@ pub async fn run(
         ));
     }
 
-    let existing_user_ids = storage
-        .get_existing_user_ids()
-        .await
-        .map_err(AppError::DatabaseError)?;
+    let existing_user_ids = crate::get_existing_user_ids(pool).await?;
 
     let members = guild_id
         .members(&ctx.http, Some(1000), None)
@@ -108,7 +103,7 @@ pub async fn run(
                     created_at: *message.timestamp,
                 };
 
-                if let Err(e) = storage.insert_introduction_message(&discord_msg).await {
+                if let Err(e) = crate::insert_introduction_message(pool, &discord_msg).await {
                     failed_users.push(format!("{}: DB error", username));
                     tracing::error!("Failed to store message for {}: {}", username, e);
                 } else {

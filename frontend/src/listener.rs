@@ -38,16 +38,10 @@ pub fn spawn_notification_listener(db_url: String, http: Arc<Http>) {
                     );
 
                     if let Ok(uid) = user_id_str.parse::<u64>() {
-                        let user_id = serenity::model::id::UserId::new(uid);
-                        // We can notify the user that their score is ready via DM
-                        if let Ok(dm_channel) = user_id.create_dm_channel(&http).await {
-                            let _ = dm_channel
-                                .say(
-                                    &http,
-                                    "Your personality profile is ready! The backend has successfully processed your introduction.",
-                                )
-                                .await;
-                        }
+                        tracing::info!(
+                            "Got message from backend that scoring is complete for id {}",
+                            uid
+                        );
                     }
                 }
                 Err(e) => {

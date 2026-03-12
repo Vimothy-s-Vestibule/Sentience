@@ -1,7 +1,10 @@
 use std::env;
-use std::sync::Arc;
 
-use syl_scr_bot::storage::postgres::PostgresStorage;
+use diesel::prelude::*;
+use diesel_async::{
+    pooled_connection::deadpool::Pool, pooled_connection::AsyncDieselConnectionManager,
+    AsyncPgConnection,
+};
 use syl_scr_bot::{commands, AppError};
 
 #[tokio::main]
@@ -36,11 +39,11 @@ async fn main() -> Result<(), AppError> {
         | GatewayIntents::GUILD_MEMBERS;
 
     let db_url = env::var("DATABASE_URL").map_err(|e| AppError::AppError(Box::new(e)))?;
-    let storage = Arc::new(
-        PostgresStorage::new(&db_url)
-            .await
-            .map_err(AppError::DatabaseError)?,
-    );
+    let config = AsyncDieselConnectionManager::<AsyncPgConnection>::new(db_url.clone());
+    let pool = Pool::builder(config)
+        .max_size(10)
+        .build()
+        .map_err(|e| AppError::AppError(Box::new(e)))?;
 
     let scraper_role_id = env::var("SCRAPER_ROLE_ID")
         .map_err(|_| AppError::MissingEnvVar("SCRAPER_ROLE_ID".into()))?
@@ -55,7 +58,7 @@ async fn main() -> Result<(), AppError> {
         })?;
 
     let handler = Handler {
-        storage,
+        pool,
         scraper_role_id: serenity::all::RoleId::new(scraper_role_id),
         intro_channel_id: serenity::all::ChannelId::new(intro_channel_id),
     };
@@ -89,7 +92,7 @@ use tracing::Level;
 use tracing_subscriber::layer::SubscriberExt;
 
 struct Handler {
-    storage: Arc<PostgresStorage>,
+    pool: Pool<AsyncPgConnection>,
     scraper_role_id: serenity::all::RoleId,
     intro_channel_id: serenity::all::ChannelId,
 }
@@ -115,7 +118,7 @@ impl EventHandler for Handler {
                         &options,
                         guild_id,
                         command_user_id,
-                        &self.storage,
+                        &self.pool,
                         self.scraper_role_id,
                         self.intro_channel_id,
                     )
