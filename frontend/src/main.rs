@@ -1,6 +1,5 @@
 use std::env;
 
-use diesel::prelude::*;
 use diesel_async::{
     pooled_connection::deadpool::Pool, pooled_connection::AsyncDieselConnectionManager,
     AsyncPgConnection,
