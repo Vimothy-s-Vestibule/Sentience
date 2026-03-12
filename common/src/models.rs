@@ -63,13 +63,11 @@ impl FromSql<Text, Pg> for RecordStatus {
 )]
 #[diesel(table_name = crate::diesel_schema::vestibule_users)]
 pub struct PersonalityTraits {
-    #[serde(alias = "honesty-humility")]
     pub honesty_humility: f64,
     pub emotionality: f64,
     pub extraversion: f64,
     pub agreeableness: f64,
     pub conscientiousness: f64,
-    #[serde(alias = "openness-to-experience")]
     pub openness_to_experience: f64,
 }
 
@@ -105,7 +103,6 @@ pub struct CommunicationTraits {
 )]
 #[diesel(table_name = crate::diesel_schema::vestibule_users)]
 pub struct Values {
-    #[serde(alias = "self-direction")]
     pub self_direction: f64,
     pub stimulation: f64,
     pub hedonism: f64,
@@ -132,9 +129,7 @@ pub struct Values {
 )]
 #[diesel(table_name = crate::diesel_schema::vestibule_users)]
 pub struct Interests {
-    #[serde(alias = "domains")]
     pub domains: Vec<String>,
-    #[serde(alias = "activities")]
     pub activities: Vec<String>,
 }
 
