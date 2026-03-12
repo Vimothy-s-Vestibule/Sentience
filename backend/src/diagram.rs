@@ -47,12 +47,12 @@ pub fn generate_personality_chart(
             .draw()?;
 
         let values = vec![
-            record.personality.honesty_humility.unwrap_or(0.0),
-            record.personality.emotionality.unwrap_or(0.0),
-            record.personality.extraversion.unwrap_or(0.0),
-            record.personality.agreeableness.unwrap_or(0.0),
-            record.personality.conscientiousness.unwrap_or(0.0),
-            record.personality.openness_to_experience.unwrap_or(0.0),
+            record.personality.honesty_humility,
+            record.personality.emotionality,
+            record.personality.extraversion,
+            record.personality.agreeableness,
+            record.personality.conscientiousness,
+            record.personality.openness_to_experience,
         ];
 
         chart.draw_series(

@@ -1,13 +1,11 @@
 use crate::{
-    AppError, GeminiRespErrors,
     params::{build_gemini_json_schema, build_user_prompt},
     score::MessageScorer,
+    AppError, GeminiRespErrors,
 };
-use syl_scr_common::models::{PersonalityTraits, CommunicationTraits, Values, Interests};
 use serde_json::json;
+use syl_scr_common::models::AiScoreResponse;
 use tracing::{info, instrument};
-
-use crate::score::models::AiScoreResponse;
 
 pub struct GeminiMessageScorer {
     api_key: String,
@@ -119,34 +117,10 @@ fn parse_score_from_gemini_response(raw: &str) -> Result<crate::VestibuleUserRec
     Ok(crate::VestibuleUserRecord {
         discord_user_id: parsed.user_id,
         discord_username: parsed.username,
-        personality: PersonalityTraits {
-            honesty_humility: parsed.personality.honesty_humility,
-            emotionality: parsed.personality.emotionality,
-            extraversion: parsed.personality.extraversion,
-            agreeableness: parsed.personality.agreeableness,
-            conscientiousness: parsed.personality.conscientiousness,
-            openness_to_experience: parsed.personality.openness_to_experience,
-        },
-        communication: CommunicationTraits {
-            agency: parsed.communication.agency,
-            communion: parsed.communication.communion,
-        },
-        values: Values {
-            self_direction: parsed.values.self_direction,
-            stimulation: parsed.values.stimulation,
-            hedonism: parsed.values.hedonism,
-            achievement: parsed.values.achievement,
-            power: parsed.values.power,
-            security: parsed.values.security,
-            conformity: parsed.values.conformity,
-            tradition: parsed.values.tradition,
-            benevolence: parsed.values.benevolence,
-            universalism: parsed.values.universalism,
-        },
-        interests: Interests {
-            interest_domains: parsed.interests.domains.into_iter().map(Some).collect(),
-            interest_activities: parsed.interests.activities.into_iter().map(Some).collect(),
-        },
+        personality: parsed.personality,
+        communication: parsed.communication,
+        values: parsed.values,
+        interests: parsed.interests,
         status: crate::RecordStatus::Scored,
         ..Default::default()
     })

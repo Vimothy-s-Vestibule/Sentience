@@ -1,14 +1,14 @@
+use diesel::prelude::*;
 use diesel_async::{
     pooled_connection::deadpool::Pool, pooled_connection::AsyncDieselConnectionManager,
     AsyncPgConnection, RunQueryDsl,
 };
-use diesel::prelude::*;
 use std::collections::HashSet;
+use syl_scr_common::diesel_schema::{messages, vestibule_users};
 use syl_scr_common::models::{
-    DiscordMessage, RecordStatus, VestibuleUserRecord,
-    PersonalityTraits, CommunicationTraits, Values, Interests
+    CommunicationTraits, DiscordMessage, Interests, PersonalityTraits, RecordStatus, Values,
+    VestibuleUserRecord,
 };
-use syl_scr_common::diesel_schema::{vestibule_users, messages};
 
 use super::AppStorage;
 
@@ -19,13 +19,12 @@ pub struct PostgresStorage {
 impl PostgresStorage {
     pub async fn new(path: &str) -> Result<Self, diesel::result::Error> {
         let config = AsyncDieselConnectionManager::<AsyncPgConnection>::new(path);
-        let pool = Pool::builder(config)
-            .max_size(10)
-            .build()
-            .map_err(|e| diesel::result::Error::DatabaseError(
+        let pool = Pool::builder(config).max_size(10).build().map_err(|e| {
+            diesel::result::Error::DatabaseError(
                 diesel::result::DatabaseErrorKind::UnableToSendCommand,
                 Box::new(e.to_string()),
-            ))?;
+            )
+        })?;
 
         Ok(Self { pool })
     }
@@ -59,7 +58,7 @@ impl AppStorage for PostgresStorage {
             .values(message)
             .execute(&mut conn)
             .await?;
-        
+
         let empty_user = VestibuleUserRecord {
             discord_user_id: message.user_id.clone(),
             discord_username: message.username.clone(),
@@ -74,15 +73,17 @@ impl AppStorage for PostgresStorage {
             .await?;
 
         // Notify backend to process this user
-        let notify_query = format!("NOTIFY process_user, '{}'", empty_user.discord_user_id);
-        diesel::sql_query(notify_query)
+        diesel::sql_query("SELECT pg_notify('process_user', $1)")
+            .bind::<diesel::sql_types::Text, _>(&empty_user.discord_user_id)
             .execute(&mut conn)
             .await?;
 
         Ok(true)
     }
 
-    async fn get_all_introduction_messages(&self) -> Result<Vec<DiscordMessage>, diesel::result::Error> {
+    async fn get_all_introduction_messages(
+        &self,
+    ) -> Result<Vec<DiscordMessage>, diesel::result::Error> {
         // Since we moved to the unified vestibule_users table, the discord content isn't stored here.
         // Oh wait. I need to store the raw message content for the backend to score it!
         // I will need to update the diesel schema to include `intro_text`.

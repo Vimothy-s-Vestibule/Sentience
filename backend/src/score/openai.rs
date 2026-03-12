@@ -1,13 +1,11 @@
 use crate::{
-    AppError, OpenAIRespErrors,
     params::{build_json_schema, build_user_prompt},
     score::MessageScorer,
+    AppError, OpenAIRespErrors,
 };
-use syl_scr_common::models::{PersonalityTraits, CommunicationTraits, Values, Interests};
 use serde_json::json;
+use syl_scr_common::models::AiScoreResponse;
 use tracing::{info, instrument};
-
-use crate::score::models::AiScoreResponse;
 
 pub struct OpenAIMessageScorer {
     api_key: String,
@@ -116,34 +114,10 @@ fn parse_score_from_openai_response(raw: &str) -> Result<crate::VestibuleUserRec
     Ok(crate::VestibuleUserRecord {
         discord_user_id: parsed.user_id,
         discord_username: parsed.username,
-        personality: PersonalityTraits {
-            honesty_humility: Some(parsed.personality.honesty_humility),
-            emotionality: Some(parsed.personality.emotionality),
-            extraversion: Some(parsed.personality.extraversion),
-            agreeableness: Some(parsed.personality.agreeableness),
-            conscientiousness: Some(parsed.personality.conscientiousness),
-            openness_to_experience: Some(parsed.personality.openness_to_experience),
-        },
-        communication: CommunicationTraits {
-            agency: Some(parsed.communication.agency),
-            communion: Some(parsed.communication.communion),
-        },
-        values: Values {
-            self_direction: Some(parsed.values.self_direction),
-            stimulation: Some(parsed.values.stimulation),
-            hedonism: Some(parsed.values.hedonism),
-            achievement: Some(parsed.values.achievement),
-            power: Some(parsed.values.power),
-            security: Some(parsed.values.security),
-            conformity: Some(parsed.values.conformity),
-            tradition: Some(parsed.values.tradition),
-            benevolence: Some(parsed.values.benevolence),
-            universalism: Some(parsed.values.universalism),
-        },
-        interests: Interests {
-            interest_domains: parsed.interests.domains,
-            interest_activities: parsed.interests.activities,
-        },
+        personality: parsed.personality,
+        communication: parsed.communication,
+        values: parsed.values,
+        interests: parsed.interests,
 
         status: crate::RecordStatus::Scored,
         ..Default::default()

@@ -4,7 +4,7 @@ use serenity::all::{
     ChannelId, Context, CreateCommand, GetMessages, Message, ResolvedOption, RoleId, UserId,
 };
 
-use crate::storage::db::PostgresStorage;
+use crate::storage::postgres::PostgresStorage;
 use crate::AppError;
 use crate::AppStorage;
 use syl_scr_common::models::DiscordMessage;
