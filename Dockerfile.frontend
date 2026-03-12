@@ -1,4 +1,4 @@
-FROM rust:1.75-bookworm AS builder
+FROM rust:1.93.1-bookworm AS builder
 
 WORKDIR /app
 
@@ -8,28 +8,27 @@ RUN apt-get update && apt-get install -y \
     libssl-dev \
     && rm -rf /var/lib/apt/lists/*
 
-COPY Cargo.toml ./
-COPY Cargo.lock ./
-COPY common common/
-COPY frontend frontend/
+COPY Cargo.toml Cargo.lock ./
+COPY common ./common
+COPY frontend ./frontend
 
 WORKDIR /app/frontend
+
 RUN cargo build --release
+
 
 FROM debian:bookworm-slim
 
 RUN apt-get update && apt-get install -y \
     libpq5 \
     libssl3 \
+    ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
-COPY --from=builder /app/frontend/target/release/syl-scr-bot /app/frontend
+COPY --from=builder /app/frontend/target/release/syl-scr-bot /usr/local/bin/syl-scr-bot
 
-ENV DATABASE_URL=postgres://sylvan:sylvanpassword@db:5432/sylvan_db
-ENV DISCORD_TOKEN=${DISCORD_TOKEN}
-ENV SCRAPER_ROLE_ID=${SCRAPER_ROLE_ID}
-ENV DISCORD_INTRO_CHANNEL_ID=${DISCORD_INTRO_CHANNEL_ID}
+ENV RUST_LOG=INFO
 
-CMD ["tail", "-f", "/dev/null"]
+CMD ["syl-scr-bot"]

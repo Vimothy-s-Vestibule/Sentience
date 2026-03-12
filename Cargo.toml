@@ -6,7 +6,7 @@ members = ["common", "backend", "frontend"]
 version = "0.1.0"
 edition = "2021"
 license = "MIT"
-authors = ["Alex Eschanz"]
+authors = ["Creative-Difficulty"]
 
 [workspace.dependencies]
 diesel = { version = "2.3.6", features = ["postgres", "chrono"] }

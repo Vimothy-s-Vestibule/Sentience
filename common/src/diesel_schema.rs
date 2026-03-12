@@ -1,5 +1,3 @@
-// @generated automatically by Diesel CLI.
-
 diesel::table! {
     use diesel::sql_types::*;
     use pgvector::sql_types::Vector;
@@ -41,8 +39,8 @@ diesel::table! {
         tradition -> Float8,
         benevolence -> Float8,
         universalism -> Float8,
-        interest_domains -> Array<Nullable<Text>>,
-        interest_activities -> Array<Nullable<Text>>,
+        interest_domains -> Array<Text>,
+        interest_activities -> Array<Text>,
         intro_embedding -> Nullable<Vector>,
         intro_diagram -> Nullable<Bytea>,
         status -> Text,
