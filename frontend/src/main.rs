@@ -1,5 +1,7 @@
 use std::env;
+use std::sync::Arc;
 
+use syl_scr_bot::storage::postgres::PostgresStorage;
 use syl_scr_bot::{commands, AppError};
 
 #[tokio::main]
@@ -33,12 +35,36 @@ async fn main() -> Result<(), AppError> {
         | GatewayIntents::MESSAGE_CONTENT
         | GatewayIntents::GUILD_MEMBERS;
 
+    let db_url = env::var("DATABASE_URL").map_err(|e| AppError::AppError(Box::new(e)))?;
+    let storage = Arc::new(
+        PostgresStorage::new(&db_url)
+            .await
+            .map_err(AppError::DatabaseError)?,
+    );
+
+    let scraper_role_id = env::var("SCRAPER_ROLE_ID")
+        .map_err(|_| AppError::MissingEnvVar("SCRAPER_ROLE_ID".into()))?
+        .parse::<u64>()
+        .map_err(|_| AppError::InvalidEnvVar("SCRAPER_ROLE_ID must be a valid u64".into()))?;
+
+    let intro_channel_id = env::var("DISCORD_INTRO_CHANNEL_ID")
+        .map_err(|_| AppError::MissingEnvVar("DISCORD_INTRO_CHANNEL_ID".into()))?
+        .parse::<u64>()
+        .map_err(|_| {
+            AppError::InvalidEnvVar("DISCORD_INTRO_CHANNEL_ID must be a valid u64".into())
+        })?;
+
+    let handler = Handler {
+        storage,
+        scraper_role_id: serenity::all::RoleId::new(scraper_role_id),
+        intro_channel_id: serenity::all::ChannelId::new(intro_channel_id),
+    };
+
     let mut client = Client::builder(&token, intents)
-        .event_handler(Handler)
+        .event_handler(handler)
         .await
         .map_err(|e| AppError::AppError(Box::new(e)))?;
 
-    let db_url = env::var("DATABASE_URL").map_err(|e| AppError::AppError(Box::new(e)))?;
     let http = client.http.clone();
 
     syl_scr_bot::listener::spawn_notification_listener(db_url, http);
@@ -62,7 +88,11 @@ use tracing::level_filters::LevelFilter;
 use tracing::Level;
 use tracing_subscriber::layer::SubscriberExt;
 
-struct Handler;
+struct Handler {
+    storage: Arc<PostgresStorage>,
+    scraper_role_id: serenity::all::RoleId,
+    intro_channel_id: serenity::all::ChannelId,
+}
 
 #[async_trait]
 impl EventHandler for Handler {
@@ -80,7 +110,16 @@ impl EventHandler for Handler {
             let command_user_id = command.user.id;
             let result: Result<String, AppError> = match command.data.name.as_str() {
                 "scrape_intros" => {
-                    commands::scrape_intros::run(&ctx, &options, guild_id, command_user_id).await
+                    commands::scrape_intros::run(
+                        &ctx,
+                        &options,
+                        guild_id,
+                        command_user_id,
+                        &self.storage,
+                        self.scraper_role_id,
+                        self.intro_channel_id,
+                    )
+                    .await
                 }
 
                 _ => Ok("not implemented".to_string()),

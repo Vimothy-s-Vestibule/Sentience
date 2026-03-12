@@ -1,5 +1,3 @@
-use std::env;
-
 use serenity::all::{
     ChannelId, Context, CreateCommand, GetMessages, Message, ResolvedOption, RoleId, UserId,
 };
@@ -60,45 +58,20 @@ async fn has_role(
     Ok(member.roles.contains(&role_id))
 }
 
-fn get_env_role_id() -> Result<RoleId, AppError> {
-    let id = env::var("SCRAPER_ROLE_ID")
-        .map_err(|_| AppError::MissingEnvVar("SCRAPER_ROLE_ID".into()))?;
-    let id = id
-        .parse::<u64>()
-        .map_err(|_| AppError::InvalidEnvVar("SCRAPER_ROLE_ID must be a valid u64".into()))?;
-    Ok(RoleId::new(id))
-}
-
-fn get_env_intro_channel_id() -> Result<ChannelId, AppError> {
-    let id = env::var("DISCORD_INTRO_CHANNEL_ID")
-        .map_err(|_| AppError::MissingEnvVar("DISCORD_INTRO_CHANNEL_ID".into()))?;
-    let id = id.parse::<u64>().map_err(|_| {
-        AppError::InvalidEnvVar("DISCORD_INTRO_CHANNEL_ID must be a valid u64".into())
-    })?;
-    Ok(ChannelId::new(id))
-}
-
 pub async fn run(
     ctx: &Context,
     _options: &[ResolvedOption<'_>],
     guild_id: serenity::model::id::GuildId,
     command_user_id: UserId,
+    storage: &PostgresStorage,
+    role_id: RoleId,
+    channel_id: ChannelId,
 ) -> Result<String, AppError> {
-    let role_id = get_env_role_id()?;
-    let channel_id = get_env_intro_channel_id()?;
-
     if !has_role(ctx, guild_id, command_user_id, role_id).await? {
         return Err(AppError::PermissionDenied(
             "You do not have the required role.".into(),
         ));
     }
-
-    let db_path =
-        env::var("DATABASE_URL").map_err(|_| AppError::MissingEnvVar("DATABASE_URL".into()))?;
-
-    let storage = PostgresStorage::new(&db_path)
-        .await
-        .map_err(AppError::DatabaseError)?;
 
     let existing_user_ids = storage
         .get_existing_user_ids()
