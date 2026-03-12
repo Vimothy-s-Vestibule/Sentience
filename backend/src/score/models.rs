@@ -1,18 +1,8 @@
 use serde::{Deserialize, Serialize};
 
-#[derive(Serialize, Deserialize, Debug, Clone, sqlx::FromRow)]
-#[serde(deny_unknown_fields)]
-pub struct DiscordMessage {
-    pub username: String,
-    pub user_id: String,
-    pub content: String,
-    #[serde(default)]
-    pub message_id: i64,
-}
-
 #[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
-pub struct User {
+pub struct AiScoreResponse {
     pub username: String,
     pub user_id: String,
     pub personality: Personality,

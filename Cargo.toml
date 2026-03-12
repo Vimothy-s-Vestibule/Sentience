@@ -1,0 +1,28 @@
+[workspace]
+resolver = "2"
+members = ["common", "backend", "frontend"]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+authors = ["Alex Eschanz"]
+
+[workspace.dependencies]
+diesel = { version = "2.3.6", features = ["postgres", "chrono"] }
+diesel-async = { version = "0.7.4", features = ["postgres", "deadpool"] }
+postgres-native-tls = "0.5"
+native-tls = "0.2"
+pgvector = { version = "0.4.1", features = ["diesel"] }
+
+serde = { version = "1.0.228", features = ["derive"] }
+serde_json = "1.0.149"
+thiserror = "2.0.18"
+tokio = { version = "1", features = ["full"] }
+tracing = "0.1"
+tracing-subscriber = "0.3"
+reqwest = { version = "0.13.2", features = ["json"] }
+dotenvy = "0.15.7"
+color-eyre = "0.6"
+plotters = "0.3.7"
+futures = "0.3"

@@ -1,0 +1,42 @@
+version: '3.8'
+
+services:
+  db:
+    image: pgvector/pgvector:pg16
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: sylvan
+      POSTGRES_PASSWORD: sylvanpassword
+      POSTGRES_DB: sylvan_db
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    depends_on:
+      - db
+    environment:
+      - DATABASE_URL=postgres://sylvan:sylvanpassword@db:5432/sylvan_db
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+    volumes:
+      - ./backend:/app/backend
+
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
+    depends_on:
+      - db
+    environment:
+      - DATABASE_URL=postgres://sylvan:sylvanpassword@db:5432/sylvan_db
+      - DISCORD_TOKEN=${DISCORD_TOKEN}
+      - SCRAPER_ROLE_ID=${SCRAPER_ROLE_ID}
+      - DISCORD_INTRO_CHANNEL_ID=${DISCORD_INTRO_CHANNEL_ID}
+    volumes:
+      - ./frontend:/app/frontend
+
+volumes:
+  pgdata:

@@ -1,7 +1,6 @@
 #![allow(dead_code, unused)]
 #![allow(clippy::result_large_err)]
-pub use syl_scr_common::schema::DiscordMessage;
-pub use syl_scr_common::schema::User;
+pub use syl_scr_common::models::DiscordMessage;
 
 use thiserror::Error;
 
@@ -28,7 +27,7 @@ pub enum AppError {
     SerenityError(#[from] serenity::Error),
 
     #[error("Database error: {0}")]
-    DatabaseError(#[from] sqlx::Error),
+    DatabaseError(#[from] diesel::result::Error),
 
     #[error("Missing environment variable: {0}")]
     MissingEnvVar(String),

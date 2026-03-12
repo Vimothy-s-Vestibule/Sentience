@@ -1,2 +1,2 @@
-pub mod db_schema;
-pub mod schema;
+pub mod diesel_schema;
+pub mod models;

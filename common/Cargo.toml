@@ -1,8 +1,13 @@
 [package]
 name = "syl-scr-common"
-version = "0.1.0"
-edition = "2024"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
 
 [dependencies]
-serde = { version = "1.0.228", features = ["derive"] }
-sqlx = "0.8.6"
+diesel.workspace = true
+pgvector.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+chrono = { version = "0.4", features = ["serde"] }

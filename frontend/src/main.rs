@@ -40,6 +40,59 @@ async fn main() -> Result<(), AppError> {
         .await
         .expect("Err creating client");
 
+    // Spawn LISTEN task for 'score_complete' using Diesel's native notifications API
+    let db_url = env::var("DATABASE_URL").unwrap_or_else(|_| "postgres://sylvan:sylvanpassword@localhost/sylvan_db".to_string());
+    let http = client.http.clone();
+    
+    tokio::spawn(async move {
+        use diesel_async::AsyncConnection;
+        use diesel_async::AsyncPgConnection;
+        use futures::stream::StreamExt;
+        use diesel::sql_query;
+        use diesel_async::RunQueryDsl;
+        
+        let mut listen_conn = match AsyncPgConnection::establish(&db_url).await {
+            Ok(c) => c,
+            Err(e) => {
+                tracing::error!("Failed to connect to Postgres for LISTEN: {}", e);
+                return;
+            }
+        };
+
+        // Register for notifications
+        if let Err(e) = sql_query("LISTEN score_complete").execute(&mut listen_conn).await {
+            tracing::error!("Failed to execute LISTEN: {}", e);
+            return;
+        }
+
+        tracing::info!("Listening for 'score_complete' notifications...");
+
+        // Create the notifications stream - must be pinned
+        let notifications = listen_conn.notifications_stream();
+        tokio::pin!(notifications);
+
+        while let Some(notification_result) = notifications.next().await {
+            match notification_result {
+                Ok(notification) => {
+                    let user_id_str = notification.payload.as_str();
+                    tracing::info!("Frontend received 'score_complete' for user: {}", user_id_str);
+                    
+                    if let Ok(uid) = user_id_str.parse::<u64>() {
+                        let user_id = serenity::model::id::UserId::new(uid);
+                        // We can notify the user that their score is ready via DM
+                        if let Ok(dm_channel) = user_id.create_dm_channel(&http).await {
+                            let _ = dm_channel.say(&http, "Your personality profile is ready! The backend has successfully processed your introduction.").await;
+                        }
+                    }
+                }
+                Err(e) => {
+                    tracing::error!("Postgres notification error: {}", e);
+                    break;
+                }
+            }
+        }
+    });
+
     // Finally, start a single shard, and start listening to events.
     //
     // Shards will automatically attempt to reconnect, and will perform exponential backoff until

@@ -1,12 +1,11 @@
 #![allow(dead_code, unused)]
 
+pub mod diagram;
 pub mod embed;
-pub mod input;
 pub mod params;
 pub mod score;
-pub mod storage;
 
-pub use syl_scr_common::schema::{DiscordMessage, User};
+pub use syl_scr_common::models::{DiscordMessage, RecordStatus, VestibuleUserRecord};
 
 use thiserror::Error;
 
@@ -14,8 +13,8 @@ use crate::embed::gemini::GeminiError;
 
 #[derive(Error, Debug)]
 pub enum AppError {
-    #[error("Error: {0}")]
-    AppError(Box<dyn std::error::Error>),
+    #[error("{0}")]
+    AppError(Box<dyn std::error::Error + Send + Sync>),
 
     #[error("Tracing error: {0}")]
     TracingError(#[from] tracing::subscriber::SetGlobalDefaultError),
@@ -35,10 +34,8 @@ pub enum AppError {
     #[error("Dotenvy error: {0}")]
     DotenvyError(#[from] dotenvy::Error),
 
-    #[error("sqlx error: {0}")]
-    SqlxError(#[from] sqlx::Error),
-    // #[error("libSQL error: {0}")]
-    // LibSQLError(#[from] libsql::Error),
+    #[error("Database error: {0}")]
+    DatabaseError(#[from] diesel::result::Error),
 }
 
 #[derive(Error, Debug)]

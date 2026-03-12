@@ -4,15 +4,10 @@ use serenity::all::{
     ChannelId, Context, CreateCommand, GetMessages, Message, ResolvedOption, RoleId, UserId,
 };
 
+use crate::storage::db::PostgresStorage;
 use crate::AppError;
 use crate::AppStorage;
-use crate::storage::sqlxlite::SqlxStorage;
-use syl_scr_common::schema::DiscordMessage;
-
-#[allow(clippy::result_large_err)]
-fn get_env_database_path() -> Result<String, AppError> {
-    env::var("DATABASE_PATH").map_err(|_| AppError::MissingEnvVar("DATABASE_PATH".into()))
-}
+use syl_scr_common::models::DiscordMessage;
 
 async fn introduction_message_by_user(
     ctx: &Context,
@@ -98,8 +93,10 @@ pub async fn run(
         ));
     }
 
-    let db_path = get_env_database_path()?;
-    let storage = SqlxStorage::new(&db_path)
+    let db_path =
+        env::var("DATABASE_URL").map_err(|_| AppError::MissingEnvVar("DATABASE_URL".into()))?;
+
+    let storage = PostgresStorage::new(&db_path)
         .await
         .map_err(AppError::DatabaseError)?;
 
@@ -134,7 +131,8 @@ pub async fn run(
                     username: username.clone(),
                     user_id: user_id.get().to_string(),
                     content: message.content.clone(),
-                    message_id: message.id.get() as i64,
+                    message_id: message.id.get().to_string(),
+                    created_at: *message.timestamp,
                 };
 
                 if let Err(e) = storage.insert_introduction_message(&discord_msg).await {
@@ -155,10 +153,8 @@ pub async fn run(
     }
 
     Ok(format!(
-        "Scraped {} new messages.\nSkipped (already have message): {}\nFailed: {}",
-        scraped_count,
-        skipped_count,
-        failed_users.len()
+        "Scraped {} new messages.\nSkipped (already in db): {}\nFailed: {:#?}",
+        scraped_count, skipped_count, failed_users
     ))
 }
 

@@ -1,6 +1,7 @@
-use crate::User;
+use crate::VestibuleUserRecord;
 
 pub mod gemini;
+pub mod models;
 pub mod openai;
 
 pub trait MessageScorer {
@@ -11,5 +12,5 @@ pub trait MessageScorer {
         username: &str,
         user_id: &str,
         content: &str,
-    ) -> impl std::future::Future<Output = Result<User, crate::AppError>> + Send;
+    ) -> impl std::future::Future<Output = Result<VestibuleUserRecord, crate::AppError>> + Send;
 }
