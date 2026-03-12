@@ -39,11 +39,11 @@ diesel::table! {
         tradition -> Float8,
         benevolence -> Float8,
         universalism -> Float8,
-        domains -> Array<Text>,
-        activities -> Array<Text>,
         intro_embedding -> Nullable<Vector>,
         intro_diagram -> Nullable<Bytea>,
         status -> Text,
+        activities -> Array<Text>,
+        domains -> Array<Text>,
     }
 }
 

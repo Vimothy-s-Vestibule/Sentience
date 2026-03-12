@@ -90,7 +90,10 @@ async fn run() -> Result<(), syl_scr::AppError> {
         let result: Option<(VestibuleUserRecord, DiscordMessage)> = vestibule_users::table
             .inner_join(syl_scr_common::diesel_schema::messages::table)
             .filter(vestibule_users::discord_user_id.eq(&discord_user_id))
-            .select((VestibuleUserRecord::as_select(), DiscordMessage::as_select()))
+            .select((
+                VestibuleUserRecord::as_select(),
+                DiscordMessage::as_select(),
+            ))
             .first(&mut conn)
             .await
             .optional()

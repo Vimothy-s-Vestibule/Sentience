@@ -23,20 +23,20 @@ pub fn build_gemini_json_schema() -> serde_json::Value {
           "description": "HEXACO personality traits normalized 0–1 where 0.5 ≈ population average percentile.",
           "type": "OBJECT",
           "properties": {
-            "honesty-humility": { "type": "NUMBER" },
+            "honesty_humility": { "type": "NUMBER" },
             "emotionality": { "type": "NUMBER" },
             "extraversion": { "type": "NUMBER" },
             "agreeableness": { "type": "NUMBER" },
             "conscientiousness": { "type": "NUMBER" },
-            "openness-to-experience": { "type": "NUMBER" }
+            "openness_to_experience": { "type": "NUMBER" }
           },
           "required": [
-            "honesty-humility",
+            "honesty_humility",
             "emotionality",
             "extraversion",
             "agreeableness",
             "conscientiousness",
-            "openness-to-experience"
+            "openness_to_experience"
           ]
         },
         "communication": {
@@ -58,7 +58,7 @@ pub fn build_gemini_json_schema() -> serde_json::Value {
           "description": "Schwartz basic human values, normalized importance weights.",
           "type": "OBJECT",
           "properties": {
-            "self-direction": { "type": "NUMBER" },
+            "self_direction": { "type": "NUMBER" },
             "stimulation": { "type": "NUMBER" },
             "hedonism": { "type": "NUMBER" },
             "achievement": { "type": "NUMBER" },
@@ -70,7 +70,7 @@ pub fn build_gemini_json_schema() -> serde_json::Value {
             "universalism": { "type": "NUMBER" }
           },
           "required": [
-            "self-direction",
+            "self_direction",
             "stimulation",
             "hedonism",
             "achievement",
@@ -114,20 +114,20 @@ pub fn build_json_schema() -> serde_json::Value {
           "description": "HEXACO personality traits normalized 0–1 where 0.5 ≈ population average percentile.",
           "type": "object",
           "properties": {
-            "honesty-humility": { "type": "number", "minimum": 0, "maximum": 1 },
+            "honesty_humility": { "type": "number", "minimum": 0, "maximum": 1 },
             "emotionality": { "type": "number", "minimum": 0, "maximum": 1 },
             "extraversion": { "type": "number", "minimum": 0, "maximum": 1 },
             "agreeableness": { "type": "number", "minimum": 0, "maximum": 1 },
             "conscientiousness": { "type": "number", "minimum": 0, "maximum": 1 },
-            "openness-to-experience": { "type": "number", "minimum": 0, "maximum": 1 }
+            "openness_to_experience": { "type": "number", "minimum": 0, "maximum": 1 }
           },
           "required": [
-            "honesty-humility",
+            "honesty_humility",
             "emotionality",
             "extraversion",
             "agreeableness",
             "conscientiousness",
-            "openness-to-experience"
+            "openness_to_experience"
           ],
           "additionalProperties": false
         },
@@ -155,7 +155,7 @@ pub fn build_json_schema() -> serde_json::Value {
           "description": "Schwartz basic human values, normalized importance weights.",
           "type": "object",
           "properties": {
-            "self-direction": { "type": "number", "minimum": 0, "maximum": 1 },
+            "self_direction": { "type": "number", "minimum": 0, "maximum": 1 },
             "stimulation": { "type": "number", "minimum": 0, "maximum": 1 },
             "hedonism": { "type": "number", "minimum": 0, "maximum": 1 },
             "achievement": { "type": "number", "minimum": 0, "maximum": 1 },
@@ -167,7 +167,7 @@ pub fn build_json_schema() -> serde_json::Value {
             "universalism": { "type": "number", "minimum": 0, "maximum": 1 }
           },
           "required": [
-            "self-direction",
+            "self_direction",
             "stimulation",
             "hedonism",
             "achievement",

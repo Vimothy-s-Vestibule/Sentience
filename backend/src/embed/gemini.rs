@@ -1,9 +1,9 @@
-use reqwest::{StatusCode, header};
+use reqwest::{header, StatusCode};
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 use tracing::{info, instrument};
 
-use crate::{AppError, embed::MessageEmbedder};
+use crate::{embed::MessageEmbedder, AppError};
 
 #[derive(Debug, Clone)]
 pub struct GeminiMessageEmbedder {
@@ -22,7 +22,7 @@ impl GeminiMessageEmbedder {
 }
 
 impl MessageEmbedder for GeminiMessageEmbedder {
-    #[instrument(skip_all, fields(username = _username, content = &text[0..10], resp_status = tracing::field::Empty))]
+    #[instrument(skip_all, fields(username = _username, content = %crate::truncate_chars(text, 10), resp_status = tracing::field::Empty))]
     async fn embed_text(
         &self,
         text: &str,
@@ -31,6 +31,7 @@ impl MessageEmbedder for GeminiMessageEmbedder {
     ) -> Result<Vec<f32>, AppError> {
         let cleaned = text.replace('\n', "");
         let cleaned = cleaned.trim();
+
         if cleaned.is_empty() {
             return Err(AppError::GeminiError(GeminiError::EmptyText));
         }

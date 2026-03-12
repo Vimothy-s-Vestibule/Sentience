@@ -22,19 +22,10 @@ pub async fn insert_introduction_message(
         .await
         .map_err(|e| AppError::AppError(Box::new(e)))?;
 
-    let exists: i64 = vestibule_users::table
-        .filter(vestibule_users::discord_user_id.eq(&message.user_id))
-        .count()
-        .get_result(&mut conn)
-        .await
-        .map_err(AppError::DatabaseError)?;
-
-    if exists > 0 {
-        return Ok(false);
-    }
-
     diesel::insert_into(messages::table)
         .values(message)
+        .on_conflict(messages::message_id)
+        .do_nothing()
         .execute(&mut conn)
         .await
         .map_err(AppError::DatabaseError)?;
@@ -49,6 +40,9 @@ pub async fn insert_introduction_message(
 
     diesel::insert_into(vestibule_users::table)
         .values(&empty_user)
+        .on_conflict(vestibule_users::discord_user_id)
+        .do_update()
+        .set(vestibule_users::intro_message_id.eq(Some(message.message_id.clone())))
         .execute(&mut conn)
         .await
         .map_err(AppError::DatabaseError)?;
@@ -71,6 +65,7 @@ pub async fn get_existing_user_ids(
         .map_err(|e| AppError::AppError(Box::new(e)))?;
 
     let user_ids: Vec<String> = vestibule_users::table
+        .inner_join(messages::table)
         .select(vestibule_users::discord_user_id)
         .load(&mut conn)
         .await

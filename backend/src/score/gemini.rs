@@ -1,4 +1,5 @@
 use crate::{
+    embed::gemini::GeminiError,
     params::{build_gemini_json_schema, build_user_prompt},
     score::MessageScorer,
     AppError, GeminiRespErrors,
@@ -18,7 +19,7 @@ impl GeminiMessageScorer {
 }
 
 impl MessageScorer for GeminiMessageScorer {
-    #[instrument(skip_all, fields(username = username, content = &content[0..10], resp_status = tracing::field::Empty))]
+    #[instrument(skip_all, fields(username = username, content = %crate::truncate_chars(content, 10), resp_status = tracing::field::Empty))]
     async fn score_message(
         &self,
         client: &reqwest::Client,
@@ -27,12 +28,16 @@ impl MessageScorer for GeminiMessageScorer {
         user_id: &str,
         content: &str,
     ) -> Result<crate::VestibuleUserRecord, AppError> {
-        #[cfg(not(debug_assertions))]
+        let cleaned = content.replace('\n', "");
+        let content = cleaned.trim();
+
+        if content.is_empty() {
+            return Err(AppError::GeminiError(GeminiError::EmptyText));
+        }
+
         let schema = build_gemini_json_schema();
-        #[cfg(not(debug_assertions))]
         let user_prompt = build_user_prompt(username, content, user_id);
 
-        #[cfg(not(debug_assertions))]
         let body = json!({
             "systemInstruction": {
                 "parts": [
@@ -53,13 +58,11 @@ impl MessageScorer for GeminiMessageScorer {
             }
         });
 
-        #[cfg(not(debug_assertions))]
         let url = format!(
             "https://generativelanguage.googleapis.com/v1beta/models/{}:generateContent",
             model
         );
 
-        #[cfg(not(debug_assertions))]
         let resp = client
             .post(&url)
             .header("x-goog-api-key", &self.api_key)
@@ -67,24 +70,14 @@ impl MessageScorer for GeminiMessageScorer {
             .json(&body)
             .send()
             .await
-            .unwrap();
+            .map_err(|e| AppError::AppError(Box::new(e)))?;
 
-        #[cfg(not(debug_assertions))]
         tracing::Span::current().record("resp_status", resp.status().to_string());
 
-        #[cfg(not(debug_assertions))]
         let resp_text = resp
             .text()
             .await
             .map_err(|e| AppError::AppError(Box::new(e)))?;
-
-        // Read use predefined response for dev/testing
-        #[cfg(debug_assertions)]
-        let resp_text = tokio::fs::read_to_string("sample_resp_gemini.json")
-            .await
-            .map_err(|e| AppError::AppError(Box::new(e)))?;
-
-        dbg!(&resp_text);
 
         parse_score_from_gemini_response(&resp_text)
     }

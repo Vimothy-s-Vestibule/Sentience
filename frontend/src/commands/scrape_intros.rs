@@ -85,10 +85,9 @@ pub async fn run(
     for member in members {
         let user = &member.user;
         let user_id = user.id;
-        let user_id_str = user_id.get().to_string();
         let username = user.name.clone();
 
-        if existing_user_ids.contains(&user_id_str) {
+        if existing_user_ids.contains(&user_id.get().to_string()) {
             skipped_count += 1;
             continue;
         }

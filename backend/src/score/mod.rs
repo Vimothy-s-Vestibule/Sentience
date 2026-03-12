@@ -1,7 +1,6 @@
 use crate::VestibuleUserRecord;
 
 pub mod gemini;
-pub mod openai;
 
 pub trait MessageScorer {
     fn score_message(

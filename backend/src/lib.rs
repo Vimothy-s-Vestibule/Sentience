@@ -53,3 +53,13 @@ pub enum GeminiRespErrors {
     #[error("Gemini response malformed, could not find output text field. Response: {0}")]
     ParseError(String),
 }
+
+// Helpers
+
+pub fn truncate_chars(s: &str, max_chars: usize) -> String {
+    if s.chars().count() <= max_chars {
+        s.to_string()
+    } else {
+        s.chars().take(max_chars).collect()
+    }
+}

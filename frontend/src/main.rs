@@ -69,7 +69,9 @@ async fn main() -> Result<(), AppError> {
 
     let http = client.http.clone();
 
-    syl_scr_bot::listener::spawn_notification_listener(db_url, http);
+    tokio::spawn(
+        async move { syl_scr_bot::listener::spawn_notification_listener(db_url, http).await },
+    );
 
     if let Err(why) = client.start().await {
         tracing::error!("Client error: {}", why);
@@ -108,7 +110,9 @@ impl EventHandler for Handler {
             );
 
             let options = command.data.options();
-            let guild_id = command.guild_id.unwrap();
+            // This should never happen
+            let guild_id = command.guild_id.unwrap_or(GuildId::new(0000000000));
+
             let command_user_id = command.user.id;
             let result: Result<String, AppError> = match command.data.name.as_str() {
                 "scrape_intros" => {
@@ -164,23 +168,13 @@ impl EventHandler for Handler {
 
         let guild_id = GuildId::new(
             env::var("GUILD_ID")
-                .expect("Expected GUILD_ID in environment")
+                .expect("GUILD_ID env var has to be present")
                 .parse()
-                .expect("GUILD_ID must be an integer"),
+                .expect("GUILD_ID env var must be an integer"),
         );
 
         let _commands = guild_id
-            .set_commands(
-                &ctx.http,
-                vec![
-                    commands::scrape_intros::register(),
-                    // commands::id::register(),
-                    // commands::welcome::register(),
-                    // commands::numberinput::register(),
-                    // commands::attachmentinput::register(),
-                    // commands::modal::register(),
-                ],
-            )
+            .set_commands(&ctx.http, vec![commands::scrape_intros::register()])
             .await;
 
         // let global_command =
