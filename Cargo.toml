@@ -1,6 +1,6 @@
 [workspace]
 resolver = "2"
-members = ["common", "backend", "frontend"]
+members = ["backend", "frontend"]
 
 [workspace.package]
 version = "0.1.0"
@@ -9,6 +9,8 @@ license = "MIT"
 authors = ["Creative-Difficulty"]
 
 [workspace.dependencies]
+syl-scr-common = { git = "https://github.com/Vimothy-s-Vestibule/unidb-schema" }
+
 diesel = { version = "2.3.6", features = ["postgres", "chrono"] }
 diesel-async = { version = "0.7.4", features = ["postgres", "deadpool"] }
 postgres-native-tls = "0.5"

@@ -6,6 +6,8 @@ license.workspace = true
 authors.workspace = true
 
 [dependencies]
+syl-scr-common.workspace = true
+
 dotenvy.workspace = true
 reqwest.workspace = true
 serde.workspace = true
@@ -14,10 +16,10 @@ thiserror.workspace = true
 tokio.workspace = true
 tracing.workspace = true
 tracing-subscriber.workspace = true
-syl-scr-common = { path = "../common" }
-serenity = "0.12.5"
 diesel.workspace = true
 diesel-async.workspace = true
 pgvector.workspace = true
 futures.workspace = true
+
 chrono = "0.4"
+serenity = "0.12.5"

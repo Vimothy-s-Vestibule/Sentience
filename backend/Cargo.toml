@@ -6,6 +6,8 @@ license.workspace = true
 authors.workspace = true
 
 [dependencies]
+syl-scr-common.workspace = true
+
 dotenvy.workspace = true
 reqwest.workspace = true
 serde.workspace = true
@@ -15,15 +17,14 @@ tokio.workspace = true
 tracing.workspace = true
 tracing-subscriber.workspace = true
 color-eyre.workspace = true
-syl-scr-common = { path = "../common" }
 diesel.workspace = true
 diesel-async.workspace = true
 postgres-native-tls.workspace = true
 native-tls.workspace = true
 pgvector.workspace = true
+plotters.workspace = true
 
 tokio-postgres = "0.7"
-plotters.workspace = true
 chrono = "0.4"
 image = "0.25.10"
 futures = "0.3"

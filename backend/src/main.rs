@@ -76,16 +76,16 @@ async fn run() -> Result<(), syl_scr::AppError> {
     // Main loop: process notifications as they arrive
     tokio::pin!(notifications);
 
+    let mut conn = pool
+        .get()
+        .await
+        .map_err(|e| AppError::AppError(Box::new(e)))?;
+
     while let Some(notification_result) = notifications.next().await {
         let notification = notification_result.map_err(|e| AppError::AppError(Box::new(e)))?;
 
         let discord_user_id = notification.payload.as_str();
         tracing::info!("Received request to process user: {}", discord_user_id);
-
-        let mut conn = pool
-            .get()
-            .await
-            .map_err(|e| AppError::AppError(Box::new(e)))?;
 
         let result: Option<(VestibuleUserRecord, DiscordMessage)> = vestibule_users::table
             .inner_join(syl_scr_common::diesel_schema::messages::table)

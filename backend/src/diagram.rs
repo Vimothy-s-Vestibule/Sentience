@@ -68,7 +68,7 @@ pub fn generate_personality_chart(
         .ok_or("Failed to create image buffer")?;
 
     let mut out_bytes = Vec::new();
-    let mut cursor = Cursor::new(&mut out_bytes);
+    let mut cursor = std::fs::File::create("output.png")?;
     img.write_to(&mut cursor, image::ImageFormat::Png)?;
 
     Ok(out_bytes)
