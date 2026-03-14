@@ -3206,7 +3206,6 @@ dependencies = [
  "syl-scr-common",
  "thiserror 2.0.18",
  "tokio",
- "tokio-postgres",
  "tracing",
  "tracing-subscriber",
 ]

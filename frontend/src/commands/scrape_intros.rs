@@ -11,7 +11,6 @@ async fn introduction_message_by_user(
     user_id: UserId,
 ) -> Result<Option<Message>, AppError> {
     let mut before = None;
-    let mut intro_found = None;
 
     loop {
         let mut request = GetMessages::new().limit(100);
@@ -28,10 +27,8 @@ async fn introduction_message_by_user(
             break;
         }
 
-        for message in &messages {
-            if message.author.id == user_id {
-                intro_found = Some(message.clone());
-            }
+        if let Some(message) = messages.iter().find(|m| m.author.id == user_id) {
+            return Ok(Some(message.clone()));
         }
 
         before = messages.last().map(|message| message.id);
@@ -40,7 +37,7 @@ async fn introduction_message_by_user(
         }
     }
 
-    Ok(intro_found)
+    Ok(None)
 }
 
 async fn has_role(
@@ -56,6 +53,10 @@ async fn has_role(
     Ok(member.roles.contains(&role_id))
 }
 
+#[tracing::instrument(
+    skip_all,
+    fields(username = %command_user_id.to_string())
+)]
 pub async fn run(
     ctx: &Context,
     _options: &[ResolvedOption<'_>],
@@ -82,6 +83,11 @@ pub async fn run(
     let mut skipped_count = 0;
     let mut failed_users = Vec::new();
 
+    let mut conn = pool
+        .get()
+        .await
+        .map_err(|e| AppError::AppError(Box::new(e)))?;
+
     for member in members {
         let user = &member.user;
         let user_id = user.id;
@@ -92,31 +98,34 @@ pub async fn run(
             continue;
         }
 
-        match introduction_message_by_user(ctx, channel_id, user_id).await {
-            Ok(Some(message)) => {
-                let discord_msg = DiscordMessage {
-                    username: username.clone(),
-                    user_id: user_id.get().to_string(),
-                    content: message.content.clone(),
-                    message_id: message.id.get().to_string(),
-                    created_at: *message.timestamp,
-                };
-
-                if let Err(e) = crate::insert_introduction_message(pool, &discord_msg).await {
-                    failed_users.push(format!("{}: DB error", username));
-                    tracing::error!("Failed to store message for {}: {}", username, e);
-                } else {
-                    scraped_count += 1;
-                }
-            }
+        let message = match introduction_message_by_user(ctx, channel_id, user_id).await {
+            Ok(Some(msg)) => msg,
             Ok(None) => {
                 failed_users.push(format!("{}: No messages", username));
+                continue;
             }
             Err(e) => {
                 failed_users.push(format!("{}: API error", username));
                 tracing::warn!("Failed to fetch messages for {}: {}", username, e);
+                continue;
             }
+        };
+
+        let discord_msg = DiscordMessage {
+            username: username.clone(),
+            user_id: user_id.get().to_string(),
+            content: message.content.clone(),
+            message_id: message.id.get().to_string(),
+            created_at: *message.timestamp,
+        };
+
+        if let Err(e) = crate::insert_introduction_message(&mut conn, &discord_msg).await {
+            failed_users.push(format!("{}: DB error", username));
+            tracing::error!("Failed to store message for {}: {}", username, e);
+            continue;
         }
+
+        scraped_count += 1;
     }
 
     Ok(format!(

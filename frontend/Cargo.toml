@@ -20,6 +20,6 @@ diesel.workspace = true
 diesel-async.workspace = true
 pgvector.workspace = true
 futures.workspace = true
+chrono.workspace = true
 
-chrono = "0.4"
 serenity = "0.12.5"

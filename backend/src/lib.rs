@@ -55,11 +55,9 @@ pub enum GeminiRespErrors {
 }
 
 // Helpers
-
-pub fn truncate_chars(s: &str, max_chars: usize) -> String {
-    if s.chars().count() <= max_chars {
-        s.to_string()
-    } else {
-        s.chars().take(max_chars).collect()
+pub fn truncate_chars(s: &str, max_chars: usize) -> &str {
+    match s.char_indices().nth(max_chars) {
+        Some((idx, _)) => &s[..=idx],
+        None => s,
     }
 }

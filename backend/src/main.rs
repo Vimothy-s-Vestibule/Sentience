@@ -81,16 +81,7 @@ async fn run() -> Result<(), syl_scr::AppError> {
         .await
         .map_err(|e| AppError::AppError(Box::new(e)))?;
 
-    let mut amount = 0;
-
     while let Some(notification_result) = notifications.next().await {
-        if amount > 0 {
-            tracing::warn!("Amount finished");
-            break;
-        }
-
-        amount += 1;
-
         let notification = notification_result.map_err(|e| AppError::AppError(Box::new(e)))?;
 
         let discord_user_id = notification.payload.as_str();

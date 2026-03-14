@@ -67,11 +67,11 @@ async fn main() -> Result<(), AppError> {
         .await
         .map_err(|e| AppError::AppError(Box::new(e)))?;
 
-    let http = client.http.clone();
+    // let http = client.http.clone();
 
-    tokio::spawn(
-        async move { syl_scr_bot::listener::spawn_notification_listener(db_url, http).await },
-    );
+    // tokio::spawn(
+    //     async move { syl_scr_bot::listener::spawn_notification_listener(db_url, http).await },
+    // );
 
     if let Err(why) = client.start().await {
         tracing::error!("Client error: {}", why);
@@ -101,65 +101,59 @@ struct Handler {
 #[async_trait]
 impl EventHandler for Handler {
     async fn interaction_create(&self, ctx: Context, interaction: Interaction) {
-        if let Interaction::Command(command) = interaction {
-            tracing::debug!(
-                "Received command: {} from {} ({})",
-                command.data.name,
-                command.user.name,
-                command.user.id,
-            );
+        let Interaction::Command(command) = interaction else {
+            return;
+        };
 
-            let options = command.data.options();
-            // This should never happen
-            let guild_id = command.guild_id.unwrap();
+        tracing::debug!(
+            "Received command: {} from {} ({})",
+            command.data.name,
+            command.user.name,
+            command.user.id,
+        );
 
-            let command_user_id = command.user.id;
-            let result: Result<String, AppError> = match command.data.name.as_str() {
-                "scrape_intros" => {
-                    commands::scrape_intros::run(
-                        &ctx,
-                        &options,
-                        guild_id,
-                        command_user_id,
-                        &self.pool,
-                        self.scraper_role_id,
-                        self.intro_channel_id,
-                    )
-                    .await
-                }
+        // Discord requires a response within 3 seconds. 
+        // Defer immediately so long-running commands (like scrape_intros) don't timeout.
+        if let Err(why) = command.defer(&ctx.http).await {
+            tracing::warn!("Cannot defer slash command: {}", why);
+            return;
+        }
 
-                _ => Ok("not implemented".to_string()),
-            };
+        let options = command.data.options();
+        // This should never happen
+        let guild_id = command.guild_id.unwrap();
 
-            let (content, deferred) = match result {
-                Ok(c) => (c, true),
-                Err(e) => {
-                    tracing::error!("Command '{}' failed: {}", command.data.name, e);
-                    (
-                        "An error occurred. Please try again later.".to_string(),
-                        true,
-                    )
-                }
-            };
-
-            if deferred {
-                if let Err(why) = command.defer(&ctx.http).await {
-                    tracing::warn!("Cannot defer slash command: {}", why);
-                    return;
-                }
-                if let Err(why) = command
-                    .edit_response(&ctx.http, EditInteractionResponse::new().content(content))
-                    .await
-                {
-                    tracing::warn!("Cannot edit deferred response: {}", why);
-                }
-            } else {
-                let data = CreateInteractionResponseMessage::new().content(content);
-                let builder = CreateInteractionResponse::Message(data);
-                if let Err(why) = command.create_response(&ctx.http, builder).await {
-                    tracing::warn!("Cannot respond to slash command: {}", why);
-                }
+        let command_user_id = command.user.id;
+        let result: Result<String, AppError> = match command.data.name.as_str() {
+            "scrape_intros" => {
+                commands::scrape_intros::run(
+                    &ctx,
+                    &options,
+                    guild_id,
+                    command_user_id,
+                    &self.pool,
+                    self.scraper_role_id,
+                    self.intro_channel_id,
+                )
+                .await
             }
+
+            _ => Ok("not implemented".to_string()),
+        };
+
+        let content = match result {
+            Ok(c) => c,
+            Err(e) => {
+                tracing::error!("Command '{}' failed: {}", command.data.name, e);
+                "An error occurred. Please try again later.".to_string()
+            }
+        };
+
+        if let Err(why) = command
+            .edit_response(&ctx.http, EditInteractionResponse::new().content(content))
+            .await
+        {
+            tracing::warn!("Cannot edit deferred response: {}", why);
         }
     }
 

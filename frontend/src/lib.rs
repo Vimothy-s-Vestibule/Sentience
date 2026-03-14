@@ -14,19 +14,14 @@ use syl_scr_common::diesel_schema::{messages, vestibule_users};
 use syl_scr_common::models::{RecordStatus, VestibuleUserRecord};
 
 pub async fn insert_introduction_message(
-    pool: &Pool<AsyncPgConnection>,
+    conn: &mut AsyncPgConnection,
     message: &DiscordMessage,
 ) -> Result<bool, AppError> {
-    let mut conn = pool
-        .get()
-        .await
-        .map_err(|e| AppError::AppError(Box::new(e)))?;
-
     diesel::insert_into(messages::table)
         .values(message)
         .on_conflict(messages::message_id)
         .do_nothing()
-        .execute(&mut conn)
+        .execute(conn)
         .await
         .map_err(AppError::DatabaseError)?;
 
@@ -43,13 +38,13 @@ pub async fn insert_introduction_message(
         .on_conflict(vestibule_users::discord_user_id)
         .do_update()
         .set(vestibule_users::intro_message_id.eq(Some(message.message_id.clone())))
-        .execute(&mut conn)
+        .execute(conn)
         .await
         .map_err(AppError::DatabaseError)?;
 
-    diesel::sql_query("SELECT pg_notify('process_user', $1)")
-        .bind::<diesel::sql_types::Text, _>(&empty_user.discord_user_id)
-        .execute(&mut conn)
+    let notify_query = format!("NOTIFY process_user, '{}'", empty_user.discord_user_id);
+    diesel::sql_query(notify_query)
+        .execute(conn)
         .await
         .map_err(AppError::DatabaseError)?;
 

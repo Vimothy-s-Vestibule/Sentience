@@ -23,9 +23,8 @@ postgres-native-tls.workspace = true
 native-tls.workspace = true
 pgvector.workspace = true
 plotters.workspace = true
+chrono.workspace = true
 
-tokio-postgres = "0.7"
-chrono = "0.4"
 image = "0.25.10"
 futures = "0.3"
 
