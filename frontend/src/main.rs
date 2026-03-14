@@ -111,7 +111,7 @@ impl EventHandler for Handler {
 
             let options = command.data.options();
             // This should never happen
-            let guild_id = command.guild_id.unwrap_or(GuildId::new(0000000000));
+            let guild_id = command.guild_id.unwrap();
 
             let command_user_id = command.user.id;
             let result: Result<String, AppError> = match command.data.name.as_str() {
@@ -164,8 +164,6 @@ impl EventHandler for Handler {
     }
 
     async fn ready(&self, ctx: Context, ready: Ready) {
-        tracing::info!("{} is connected!", ready.user.name);
-
         let guild_id = GuildId::new(
             env::var("GUILD_ID")
                 .expect("GUILD_ID env var has to be present")
@@ -175,12 +173,19 @@ impl EventHandler for Handler {
 
         let _commands = guild_id
             .set_commands(&ctx.http, vec![commands::scrape_intros::register()])
-            .await;
+            .await
+            .map_err(AppError::SerenityError)
+            .inspect_err(|e| tracing::error!("Failed to register slash commands: {e}"));
 
-        // let global_command =
-        //     Command::create_global_command(&ctx.http, commands::wonderful_command::register())
-        //         .await;
-
-        // println!("I created the following global slash command: {global_command:#?}");
+        tracing::info!(
+            "Online & ready with username {} in guild {} with commands {:#?}",
+            ready.user.name,
+            guild_id,
+            _commands
+                .unwrap()
+                .iter()
+                .map(|c| &c.name)
+                .collect::<Vec<&String>>()
+        );
     }
 }
