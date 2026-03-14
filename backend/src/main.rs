@@ -1,11 +1,20 @@
 use std::env;
+use std::time::Duration;
 
+use crossterm::{
+    event::{self, DisableMouseCapture, EnableMouseCapture, Event as CEvent},
+    execute,
+    terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
+};
 use diesel::expression_methods::ExpressionMethods;
 use diesel::query_dsl::QueryDsl;
 use diesel::SelectableHelper;
 use diesel_async::pooled_connection::deadpool::Pool;
 use diesel_async::pooled_connection::AsyncDieselConnectionManager;
 use diesel_async::RunQueryDsl;
+use ratatui::{backend::CrosstermBackend, Terminal};
+use tokio::sync::mpsc;
+
 use syl_scr::embed::MessageEmbedder;
 use syl_scr::score::MessageScorer;
 use syl_scr::AppError;
@@ -14,31 +23,84 @@ use syl_scr::RecordStatus;
 use syl_scr::VestibuleUserRecord;
 use syl_scr_common::diesel_schema::vestibule_users;
 
+mod tui;
+use tui::{draw_ui, App, AppEvent};
+
 #[tokio::main]
 async fn main() -> color_eyre::Result<()> {
     color_eyre::install()?;
 
-    let subscriber = tracing_subscriber::fmt()
-        .event_format(
-            tracing_subscriber::fmt::format()
-                .with_file(true)
-                .with_line_number(true),
-        )
-        // See how long a function takes
-        // .with_span_events(tracing_subscriber::fmt::format::FmtSpan::CLOSE)
-        .finish();
+    // Initialize tui-logger instead of standard tracing-subscriber
+    tui_logger::init_logger(log::LevelFilter::Info).unwrap_or(());
+    tui_logger::set_default_level(log::LevelFilter::Info);
 
-    tracing::subscriber::set_global_default(subscriber)?;
+    // Only initialize tracing-subscriber if it hasn't been already
+    let _ = tracing_subscriber::fmt()
+        .with_max_level(tracing::Level::INFO)
+        .try_init();
 
-    run()
-        .await
-        .map_err(|e| color_eyre::eyre::eyre!(e.to_string()))?;
+    dotenvy::dotenv().ok();
+
+    // Setup terminal
+    enable_raw_mode()?;
+    let mut stdout = std::io::stdout();
+    execute!(stdout, EnterAlternateScreen, EnableMouseCapture)?;
+    let backend = CrosstermBackend::new(stdout);
+    let mut terminal = Terminal::new(backend)?;
+
+    let (tx, mut rx) = mpsc::unbounded_channel();
+    let tx_clone = tx.clone();
+
+    // Spawn polling worker thread
+    tokio::spawn(async move {
+        if let Err(e) = run_worker(tx_clone).await {
+            tracing::error!("Worker thread failed: {:?}", e);
+        }
+    });
+
+    // Spawn input thread
+    let tx_input = tx.clone();
+    tokio::spawn(async move {
+        let tick_rate = Duration::from_millis(200);
+        loop {
+            if event::poll(tick_rate).unwrap_or(false) {
+                if let Ok(CEvent::Key(key)) = event::read() {
+                    let _ = tx_input.send(AppEvent::Input(key.code));
+                }
+            } else {
+                let _ = tx_input.send(AppEvent::Tick);
+            }
+        }
+    });
+
+    let mut app = App::new();
+
+    // Main TUI loop
+    loop {
+        terminal.draw(|f| draw_ui(f, &mut app))?;
+
+        if let Some(event) = rx.recv().await {
+            app.handle_event(event);
+        }
+
+        if app.should_quit {
+            break;
+        }
+    }
+
+    // Restore terminal
+    disable_raw_mode()?;
+    execute!(
+        terminal.backend_mut(),
+        LeaveAlternateScreen,
+        DisableMouseCapture
+    )?;
+    terminal.show_cursor()?;
+
     Ok(())
 }
 
-async fn run() -> Result<(), syl_scr::AppError> {
-    dotenvy::dotenv().ok();
-
+async fn run_worker(tx: mpsc::UnboundedSender<AppEvent>) -> Result<(), syl_scr::AppError> {
     let client_http = reqwest::Client::new();
 
     let message_scorer = syl_scr::score::gemini::GeminiMessageScorer::new(
@@ -55,7 +117,28 @@ async fn run() -> Result<(), syl_scr::AppError> {
         .build()
         .map_err(|e| AppError::AppError(Box::new(e)))?;
 
-    tracing::info!("Starting background polling loop for 'Pending' users...");
+    tracing::info!("Starting background database operations...");
+
+    // Initial Load
+    {
+        let mut conn = pool
+            .get()
+            .await
+            .map_err(|e| AppError::AppError(Box::new(e)))?;
+        let all_users: Vec<(VestibuleUserRecord, DiscordMessage)> = vestibule_users::table
+            .inner_join(syl_scr_common::diesel_schema::messages::table)
+            .select((
+                VestibuleUserRecord::as_select(),
+                DiscordMessage::as_select(),
+            ))
+            .load(&mut conn)
+            .await
+            .unwrap_or_else(|e| {
+                tracing::error!("Failed to fetch initial users: {}", e);
+                vec![]
+            });
+        let _ = tx.send(AppEvent::Init(all_users));
+    }
 
     let mut interval = tokio::time::interval(std::time::Duration::from_secs(5));
 
@@ -84,9 +167,16 @@ async fn run() -> Result<(), syl_scr::AppError> {
                 vec![]
             });
 
+        if !pending_users.is_empty() {
+            let _ = tx.send(AppEvent::NewPending(pending_users.clone()));
+        }
+
+        let mut processed_any = false;
+
         for (user_record, discord_msg) in pending_users {
             let discord_user_id = user_record.discord_user_id.clone();
             tracing::info!("Processing pending user: {}", discord_user_id);
+            let _ = tx.send(AppEvent::Processing(discord_user_id.clone()));
 
             match process_message(
                 &message_scorer,
@@ -98,7 +188,7 @@ async fn run() -> Result<(), syl_scr::AppError> {
             {
                 Ok(mut score) => {
                     score.status = RecordStatus::Scored;
-                    score.intro_message_id = user_record.intro_message_id;
+                    score.intro_message_id = user_record.intro_message_id.clone();
 
                     if let Err(e) = diesel::update(vestibule_users::table)
                         .filter(vestibule_users::discord_user_id.eq(&discord_user_id))
@@ -109,12 +199,18 @@ async fn run() -> Result<(), syl_scr::AppError> {
                         tracing::error!("Failed to save score for user {}: {}", discord_user_id, e);
                     } else {
                         tracing::info!("Successfully scored user {}", discord_user_id);
+                        let _ = tx.send(AppEvent::Scored(score, discord_msg));
+                        processed_any = true;
                     }
                 }
                 Err(e) => {
                     tracing::error!("Failed to score user {}: {}", discord_user_id, e);
                 }
             }
+        }
+
+        if processed_any {
+            tracing::info!("All queued users have been scored and embedded successfully.");
         }
     }
 }
@@ -145,8 +241,13 @@ async fn process_message(
 
     score.intro_embedding = Some(pgvector::Vector::from(embedding));
 
-    let diagram_bytes =
-        syl_scr::diagram::generate_personality_chart(&score).map_err(AppError::AppError)?;
+    let score_clone = score.clone();
+    let diagram_bytes = tokio::task::spawn_blocking(move || {
+        syl_scr::diagram::generate_personality_chart(&score_clone)
+    })
+    .await
+    .map_err(|e| AppError::AppError(Box::new(e)))?
+    .map_err(AppError::AppError)?;
 
     score.intro_diagram = Some(diagram_bytes);
     score.intro_message_id = Some(msg.message_id.clone());
