@@ -67,12 +67,6 @@ async fn main() -> Result<(), AppError> {
         .await
         .map_err(|e| AppError::AppError(Box::new(e)))?;
 
-    // let http = client.http.clone();
-
-    // tokio::spawn(
-    //     async move { syl_scr_bot::listener::spawn_notification_listener(db_url, http).await },
-    // );
-
     if let Err(why) = client.start().await {
         tracing::error!("Client error: {}", why);
     }
@@ -82,7 +76,7 @@ async fn main() -> Result<(), AppError> {
 
 use serenity::async_trait;
 use serenity::builder::{
-    CreateInteractionResponse, CreateInteractionResponseMessage, EditInteractionResponse,
+    CreateInteractionResponse, CreateInteractionResponseMessage, EditInteractionResponse, CreateAttachment,
 };
 use serenity::model::application::Interaction;
 use serenity::model::gateway::Ready;
@@ -105,7 +99,7 @@ impl EventHandler for Handler {
             return;
         };
 
-        tracing::debug!(
+        tracing::info!(
             "Received command: {} from {} ({})",
             command.data.name,
             command.user.name,
@@ -124,7 +118,7 @@ impl EventHandler for Handler {
         let guild_id = command.guild_id.unwrap();
 
         let command_user_id = command.user.id;
-        let result: Result<String, AppError> = match command.data.name.as_str() {
+        let result: Result<(String, Option<Vec<u8>>), AppError> = match command.data.name.as_str() {
             "scrape_intros" => {
                 commands::scrape_intros::run(
                     &ctx,
@@ -137,20 +131,36 @@ impl EventHandler for Handler {
                 )
                 .await
             }
+            "my_diagram" => {
+                commands::my_diagram::run(
+                    &ctx,
+                    &options,
+                    command_user_id,
+                    &self.pool,
+                )
+                .await
+            }
 
-            _ => Ok("not implemented".to_string()),
+            _ => Ok(("not implemented".to_string(), None)),
         };
 
-        let content = match result {
-            Ok(c) => c,
+        let (content, attachment_bytes) = match result {
+            Ok((c, bytes)) => (c, bytes),
             Err(e) => {
                 tracing::error!("Command '{}' failed: {}", command.data.name, e);
-                "An error occurred. Please try again later.".to_string()
+                ("An error occurred. Please try again later.".to_string(), None)
             }
         };
 
+        let mut edit_response = EditInteractionResponse::new().content(content);
+        
+        if let Some(bytes) = attachment_bytes {
+            let attachment = CreateAttachment::bytes(bytes, "diagram.png");
+            edit_response = edit_response.new_attachment(attachment);
+        }
+
         if let Err(why) = command
-            .edit_response(&ctx.http, EditInteractionResponse::new().content(content))
+            .edit_response(&ctx.http, edit_response)
             .await
         {
             tracing::warn!("Cannot edit deferred response: {}", why);
@@ -166,7 +176,7 @@ impl EventHandler for Handler {
         );
 
         let _commands = guild_id
-            .set_commands(&ctx.http, vec![commands::scrape_intros::register()])
+            .set_commands(&ctx.http, vec![commands::scrape_intros::register(), commands::my_diagram::register()])
             .await
             .map_err(AppError::SerenityError)
             .inspect_err(|e| tracing::error!("Failed to register slash commands: {e}"));

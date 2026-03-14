@@ -2,13 +2,10 @@ use std::env;
 
 use diesel::expression_methods::ExpressionMethods;
 use diesel::query_dsl::QueryDsl;
-use diesel::sql_query;
-use diesel::OptionalExtension;
 use diesel::SelectableHelper;
 use diesel_async::pooled_connection::deadpool::Pool;
 use diesel_async::pooled_connection::AsyncDieselConnectionManager;
 use diesel_async::RunQueryDsl;
-use futures::stream::StreamExt;
 use syl_scr::embed::MessageEmbedder;
 use syl_scr::score::MessageScorer;
 use syl_scr::AppError;
@@ -27,7 +24,8 @@ async fn main() -> color_eyre::Result<()> {
                 .with_file(true)
                 .with_line_number(true),
         )
-        .with_span_events(tracing_subscriber::fmt::format::FmtSpan::CLOSE)
+        // See how long a function takes
+        // .with_span_events(tracing_subscriber::fmt::format::FmtSpan::CLOSE)
         .finish();
 
     tracing::subscriber::set_global_default(subscriber)?;
@@ -57,53 +55,38 @@ async fn run() -> Result<(), syl_scr::AppError> {
         .build()
         .map_err(|e| AppError::AppError(Box::new(e)))?;
 
-    let mut listen_conn = pool
-        .get()
-        .await
-        .map_err(|e| AppError::AppError(Box::new(e)))?;
+    tracing::info!("Starting background polling loop for 'Pending' users...");
 
-    // Register for notifications
-    diesel::sql_query("LISTEN process_user")
-        .execute(&mut listen_conn)
-        .await
-        .map_err(|e| AppError::AppError(Box::new(e)))?;
+    let mut interval = tokio::time::interval(std::time::Duration::from_secs(5));
 
-    // Create the notifications stream - must be pinned
-    let notifications = listen_conn.notifications_stream();
+    loop {
+        interval.tick().await;
 
-    tracing::info!("Listening for 'process_user' notifications...");
+        let mut conn = match pool.get().await {
+            Ok(c) => c,
+            Err(e) => {
+                tracing::error!("Failed to get database connection from pool: {}", e);
+                continue;
+            }
+        };
 
-    // Main loop: process notifications as they arrive
-    tokio::pin!(notifications);
-
-    let mut conn = pool
-        .get()
-        .await
-        .map_err(|e| AppError::AppError(Box::new(e)))?;
-
-    while let Some(notification_result) = notifications.next().await {
-        let notification = notification_result.map_err(|e| AppError::AppError(Box::new(e)))?;
-
-        let discord_user_id = notification.payload.as_str();
-        tracing::info!("Received request to process user: {}", discord_user_id);
-
-        let result: Option<(VestibuleUserRecord, DiscordMessage)> = vestibule_users::table
+        let pending_users: Vec<(VestibuleUserRecord, DiscordMessage)> = vestibule_users::table
             .inner_join(syl_scr_common::diesel_schema::messages::table)
-            .filter(vestibule_users::discord_user_id.eq(&discord_user_id))
+            .filter(vestibule_users::status.eq(RecordStatus::Pending))
             .select((
                 VestibuleUserRecord::as_select(),
                 DiscordMessage::as_select(),
             ))
-            .first(&mut conn)
+            .load(&mut conn)
             .await
-            .optional()
-            .map_err(|e| AppError::AppError(Box::new(e)))?;
+            .unwrap_or_else(|e| {
+                tracing::error!("Failed to fetch pending users: {}", e);
+                vec![]
+            });
 
-        if let Some((user_record, discord_msg)) = result {
-            if user_record.status == RecordStatus::Scored {
-                tracing::info!("User {} already scored, skipping.", discord_user_id);
-                continue;
-            }
+        for (user_record, discord_msg) in pending_users {
+            let discord_user_id = user_record.discord_user_id.clone();
+            tracing::info!("Processing pending user: {}", discord_user_id);
 
             match process_message(
                 &message_scorer,
@@ -126,30 +109,14 @@ async fn run() -> Result<(), syl_scr::AppError> {
                         tracing::error!("Failed to save score for user {}: {}", discord_user_id, e);
                     } else {
                         tracing::info!("Successfully scored user {}", discord_user_id);
-
-                        let notify_query = format!("NOTIFY score_complete, '{}'", discord_user_id);
-                        if let Err(e) = sql_query(notify_query).execute(&mut conn).await {
-                            tracing::error!(
-                                "Failed to notify frontend for user {}: {}",
-                                discord_user_id,
-                                e
-                            );
-                        }
                     }
                 }
                 Err(e) => {
                     tracing::error!("Failed to score user {}: {}", discord_user_id, e);
                 }
             }
-        } else {
-            tracing::warn!(
-                "Received notification for {}, but record not found",
-                discord_user_id
-            );
         }
     }
-
-    Ok(())
 }
 
 #[tracing::instrument(

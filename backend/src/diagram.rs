@@ -99,8 +99,8 @@ pub fn generate_personality_chart(
     let img: ImageBuffer<Rgb<u8>, Vec<u8>> = ImageBuffer::from_raw(width, height, pixel_buffer)
         .ok_or("Failed to create image buffer")?;
 
-    let mut cursor = std::fs::File::create("output.png")?;
+    let mut cursor = std::io::Cursor::new(Vec::new());
     img.write_to(&mut cursor, image::ImageFormat::Png)?;
 
-    Ok(Vec::new())
+    Ok(cursor.into_inner())
 }

@@ -5,7 +5,6 @@ pub use syl_scr_common::models::DiscordMessage;
 use thiserror::Error;
 
 pub mod commands;
-pub mod listener;
 
 use diesel::prelude::*;
 use diesel_async::{pooled_connection::deadpool::Pool, AsyncPgConnection, RunQueryDsl};
@@ -38,12 +37,6 @@ pub async fn insert_introduction_message(
         .on_conflict(vestibule_users::discord_user_id)
         .do_update()
         .set(vestibule_users::intro_message_id.eq(Some(message.message_id.clone())))
-        .execute(conn)
-        .await
-        .map_err(AppError::DatabaseError)?;
-
-    let notify_query = format!("NOTIFY process_user, '{}'", empty_user.discord_user_id);
-    diesel::sql_query(notify_query)
         .execute(conn)
         .await
         .map_err(AppError::DatabaseError)?;
