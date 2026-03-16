@@ -76,7 +76,7 @@ async fn main() -> Result<(), AppError> {
 
 use serenity::async_trait;
 use serenity::builder::{
-    CreateInteractionResponse, CreateInteractionResponseMessage, EditInteractionResponse, CreateAttachment,
+    EditInteractionResponse, CreateAttachment,
 };
 use serenity::model::application::Interaction;
 use serenity::model::gateway::Ready;

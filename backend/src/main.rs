@@ -17,10 +17,8 @@ use tokio::sync::mpsc;
 
 use syl_scr::embed::MessageEmbedder;
 use syl_scr::score::MessageScorer;
-use syl_scr::AppError;
-use syl_scr::DiscordMessage;
-use syl_scr::RecordStatus;
-use syl_scr::VestibuleUserRecord;
+use syl_scr::{AppError, DiscordMessage, RecordStatus, VestibuleUserRecord};
+
 use syl_scr_common::diesel_schema::vestibule_users;
 
 mod tui;
@@ -49,12 +47,14 @@ async fn main() -> color_eyre::Result<()> {
     let mut terminal = Terminal::new(backend)?;
 
     let (tx, mut rx) = mpsc::unbounded_channel();
-    let tx_clone = tx.clone();
 
     // Spawn polling worker thread
+    let tx_worker = tx.clone();
     tokio::spawn(async move {
-        if let Err(e) = run_worker(tx_clone).await {
+        let _ = tx_worker.send(AppEvent::DbConnecting);
+        if let Err(e) = run_worker(tx_worker.clone()).await {
             tracing::error!("Worker thread failed: {:?}", e);
+            let _ = tx_worker.send(AppEvent::DbError(e.to_string()));
         }
     });
 
@@ -64,8 +64,16 @@ async fn main() -> color_eyre::Result<()> {
         let tick_rate = Duration::from_millis(200);
         loop {
             if event::poll(tick_rate).unwrap_or(false) {
-                if let Ok(CEvent::Key(key)) = event::read() {
-                    let _ = tx_input.send(AppEvent::Input(key.code));
+                if let Ok(c_event) = event::read() {
+                    match c_event {
+                        CEvent::Key(key) => {
+                            let _ = tx_input.send(AppEvent::Input(key.code));
+                        }
+                        CEvent::Mouse(mouse) => {
+                            let _ = tx_input.send(AppEvent::Mouse(mouse));
+                        }
+                        _ => {}
+                    }
                 }
             } else {
                 let _ = tx_input.send(AppEvent::Tick);
@@ -146,9 +154,13 @@ async fn run_worker(tx: mpsc::UnboundedSender<AppEvent>) -> Result<(), syl_scr::
         interval.tick().await;
 
         let mut conn = match pool.get().await {
-            Ok(c) => c,
+            Ok(c) => {
+                let _ = tx.send(AppEvent::DbConnected);
+                c
+            }
             Err(e) => {
                 tracing::error!("Failed to get database connection from pool: {}", e);
+                let _ = tx.send(AppEvent::DbError(e.to_string()));
                 continue;
             }
         };

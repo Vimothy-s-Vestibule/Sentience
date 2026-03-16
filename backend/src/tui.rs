@@ -1,6 +1,6 @@
-use crossterm::event::KeyCode;
+use crossterm::event::{KeyCode, MouseEvent, MouseEventKind};
 use ratatui::{
-    layout::{Constraint, Direction, Layout},
+    layout::{Alignment, Constraint, Direction, Layout},
     style::{Color, Modifier, Style},
     text::Span,
     widgets::{Block, Borders, Gauge, List, ListItem, ListState, Paragraph, Wrap},
@@ -11,13 +11,24 @@ use syl_scr::DiscordMessage;
 use syl_scr::RecordStatus;
 use syl_scr::VestibuleUserRecord;
 
+#[derive(Debug, PartialEq)]
+pub enum DbState {
+    Connecting,
+    Connected,
+    Disconnected(String),
+}
+
 #[allow(clippy::large_enum_variant)]
 pub enum AppEvent {
+    DbConnecting,
+    DbConnected,
+    DbError(String),
     Init(Vec<(VestibuleUserRecord, DiscordMessage)>),
     NewPending(Vec<(VestibuleUserRecord, DiscordMessage)>),
     Processing(String), // user_id
     Scored(VestibuleUserRecord, DiscordMessage),
     Input(KeyCode),
+    Mouse(MouseEvent),
     Tick,
 }
 
@@ -28,6 +39,8 @@ pub struct App {
     pub should_quit: bool,
     pub search_query: String,
     pub search_mode: bool,
+    pub db_state: DbState,
+    pub spinner_tick: usize,
 }
 
 impl App {
@@ -39,6 +52,8 @@ impl App {
             should_quit: false,
             search_query: String::new(),
             search_mode: false,
+            db_state: DbState::Connecting,
+            spinner_tick: 0,
         }
     }
 
@@ -54,6 +69,25 @@ impl App {
                 })
                 .collect()
         }
+    }
+
+    pub fn sort_users(&mut self) {
+        self.users.sort_by(|a, b| {
+            let a_score = if a.0.status == RecordStatus::Pending {
+                0
+            } else {
+                1
+            };
+            let b_score = if b.0.status == RecordStatus::Pending {
+                0
+            } else {
+                1
+            };
+            match a_score.cmp(&b_score) {
+                std::cmp::Ordering::Equal => b.1.created_at.cmp(&a.1.created_at),
+                other => other,
+            }
+        });
     }
 
     pub fn next(&mut self) {
@@ -94,22 +128,19 @@ impl App {
 
     pub fn handle_event(&mut self, event: AppEvent) {
         match event {
-            AppEvent::Init(mut users) => {
-                // Sort pending at the top
-                users.sort_by(|a, b| {
-                    let a_score = if a.0.status == RecordStatus::Pending {
-                        0
-                    } else {
-                        1
-                    };
-                    let b_score = if b.0.status == RecordStatus::Pending {
-                        0
-                    } else {
-                        1
-                    };
-                    a_score.cmp(&b_score)
-                });
+            AppEvent::DbConnecting => {
+                self.db_state = DbState::Connecting;
+            }
+            AppEvent::DbConnected => {
+                self.db_state = DbState::Connected;
+            }
+            AppEvent::DbError(err) => {
+                self.db_state = DbState::Disconnected(err);
+            }
+            AppEvent::Init(users) => {
+                self.db_state = DbState::Connected;
                 self.users = users;
+                self.sort_users();
                 if !self.users.is_empty() {
                     self.list_state.select(Some(0));
                 }
@@ -121,9 +152,10 @@ impl App {
                         .iter()
                         .any(|(u, _)| u.discord_user_id == nu.0.discord_user_id)
                     {
-                        self.users.insert(0, nu);
+                        self.users.push(nu);
                     }
                 }
+                self.sort_users();
             }
             AppEvent::Processing(id) => {
                 self.processing_id = Some(id);
@@ -139,6 +171,7 @@ impl App {
                 } else {
                     self.users.push((record, msg));
                 }
+                self.sort_users();
             }
             AppEvent::Input(key) => {
                 if self.search_mode {
@@ -170,7 +203,14 @@ impl App {
                     }
                 }
             }
-            AppEvent::Tick => {}
+            AppEvent::Mouse(mouse) => match mouse.kind {
+                MouseEventKind::ScrollDown => self.next(),
+                MouseEventKind::ScrollUp => self.previous(),
+                _ => {}
+            },
+            AppEvent::Tick => {
+                self.spinner_tick = self.spinner_tick.wrapping_add(1);
+            }
         }
     }
 }
@@ -213,48 +253,91 @@ pub fn draw_ui(f: &mut ratatui::Frame, app: &mut App) {
             .collect()
     };
 
-    let items: Vec<ListItem> = filtered_users
-        .iter()
-        .map(|(u, _)| {
-            let is_processing = app.processing_id.as_deref() == Some(&u.discord_user_id);
-            let color = if is_processing {
-                Color::Yellow
-            } else if u.status == RecordStatus::Scored {
-                Color::Green
-            } else {
-                Color::White
-            };
+    // 1. Left Pane (Users List / Db State)
+    if app.db_state == DbState::Connecting || matches!(app.db_state, DbState::Disconnected(_)) {
+        let (title, color, text) = match &app.db_state {
+            DbState::Connecting => {
+                let spinners = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
+                let spinner = spinners[(app.spinner_tick / 2) % spinners.len()];
+                (
+                    " Connecting ",
+                    Color::Yellow,
+                    format!("{} Connecting to database...", spinner),
+                )
+            }
+            DbState::Disconnected(err) => (" Error ", Color::Red, format!("Disconnected\n{}", err)),
+            _ => unreachable!(),
+        };
 
-            let symbol = if is_processing {
-                "⟳ "
-            } else if u.status == RecordStatus::Scored {
-                "✓ "
-            } else {
-                "⏳ "
-            };
+        let para = Paragraph::new(text)
+            .alignment(Alignment::Center)
+            .wrap(Wrap { trim: true });
 
-            ListItem::new(format!("{}{}", symbol, u.discord_username))
-                .style(Style::default().fg(color))
-        })
-        .collect();
+        let block = Block::default()
+            .title(title)
+            .borders(Borders::ALL)
+            .border_style(Style::default().fg(color));
 
-    let list_title = if app.search_mode {
-        format!(" Search: {}█ ", app.search_query)
-    } else if !app.search_query.is_empty() {
-        format!(" Users (Filtered: {}) [/] ", app.search_query)
+        let inner_area = block.inner(top_chunks[0]);
+        f.render_widget(block, top_chunks[0]);
+
+        let inner_layout = Layout::default()
+            .direction(Direction::Vertical)
+            .constraints(
+                [
+                    Constraint::Percentage(40),
+                    Constraint::Min(3),
+                    Constraint::Percentage(40),
+                ]
+                .as_ref(),
+            )
+            .split(inner_area);
+
+        f.render_widget(para, inner_layout[1]);
     } else {
-        " Users [/] ".to_string()
-    };
+        let items: Vec<ListItem> = filtered_users
+            .iter()
+            .map(|(u, _)| {
+                let is_processing = app.processing_id.as_deref() == Some(&u.discord_user_id);
+                let color = if is_processing {
+                    Color::Yellow
+                } else if u.status == RecordStatus::Scored {
+                    Color::Green
+                } else {
+                    Color::White
+                };
 
-    let users_list = List::new(items)
-        .block(Block::default().title(list_title).borders(Borders::ALL))
-        .highlight_style(
-            Style::default()
-                .bg(Color::DarkGray)
-                .add_modifier(Modifier::BOLD),
-        );
+                let symbol = if is_processing {
+                    "⟳ "
+                } else if u.status == RecordStatus::Scored {
+                    "✓ "
+                } else {
+                    "⏳ "
+                };
 
-    f.render_stateful_widget(users_list, top_chunks[0], &mut app.list_state);
+                ListItem::new(format!("{}{}", symbol, u.discord_username))
+                    .style(Style::default().fg(color))
+            })
+            .collect();
+
+        let list_title = if app.search_mode {
+            format!(" Search: {}█ ", app.search_query)
+        } else if !app.search_query.is_empty() {
+            format!(" Users (Filtered: {}) [/] ", app.search_query)
+        } else {
+            " Users [/] ".to_string()
+        };
+
+        let users_list = List::new(items)
+            .block(Block::default().title(list_title).borders(Borders::ALL))
+            .highlight_style(
+                Style::default()
+                    .bg(Color::DarkGray)
+                    .add_modifier(Modifier::BOLD),
+            );
+
+        f.render_stateful_widget(users_list, top_chunks[0], &mut app.list_state);
+    }
 
     // 2. Middle Pane (Intro Text)
     let intro_text = if let Some(i) = app.list_state.selected() {
