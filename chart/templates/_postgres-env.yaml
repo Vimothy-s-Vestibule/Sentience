@@ -1,0 +1,7 @@
+{{/*
+PostgreSQL environment variables template
+*/}}
+{{- define "platformjam.postgres-env" -}}
+- name: DATABASE_URL
+{{ tpl (toYaml .Values.postgres.connectionString) . | indent 2 }}
+{{- end -}}

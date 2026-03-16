@@ -1,29 +1,29 @@
-{{- $image := printf "%s%s" .Values.registry .Values.frontend.image -}}
+{{- $image := printf "%s%s" .Values.registry .Values.backend.image -}}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ .Release.Name }}-frontend
+  name: {{ .Release.Name }}-backend
 spec:
-  replicas: {{ .Values.frontend.replicas }}
+  replicas: {{ .Values.backend.replicas }}
   selector:
     matchLabels:
-      app: {{ .Release.Name }}-frontend
+      app: {{ .Release.Name }}-backend
   template:
     metadata:
       labels:
-        app: {{ .Release.Name }}-frontend
+        app: {{ .Release.Name }}-backend
     spec:
     {{- if .Values.imagePullSecrets }}
       imagePullSecrets:
 {{ toYaml .Values.imagePullSecrets | indent 10 }}
     {{- end }}
       containers:
-      - name: frontend
-        imagePullPolicy: {{ .Values.frontend.imagePullPolicy }}
+      - name: backend
+        imagePullPolicy: {{ .Values.backend.imagePullPolicy }}
         image: {{ $image }}
-    {{- if .Values.frontend.resources }}
+    {{- if .Values.backend.resources }}
         resources:
-{{ toYaml .Values.frontend.resources | indent 10 }}
+{{ toYaml .Values.backend.resources | indent 10 }}
     {{- end }}
         readinessProbe:
           exec:

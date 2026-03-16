@@ -1,7 +1,0 @@
-{{/*
-CORS environment variables template
-*/}}
-{{- define "1984bot.cors-env" -}}
-- name: ALLOWED_ORIGINS
-  value: {{ join "," .Values.cors.allowedOrigins }}
-{{- end -}}

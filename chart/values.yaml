@@ -1,10 +1,11 @@
 imagePullSecrets: []
 registry: ""
-cors:
-  allowedOrigins:
-    - http://localhost:8080
-    - http://localhost:5173
-    - http://localhost:5174
+postgres:
+  connectionString:
+    valueFrom:
+      secretKeyRef:
+        name: postgres-cred
+        key: connection_string
 
 frontend:
   image: sylvanfranklin/sentience-frontend
