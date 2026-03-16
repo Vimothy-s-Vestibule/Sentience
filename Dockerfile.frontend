@@ -1,16 +1,44 @@
-FROM rust:1.93.1-slim-trixie AS builder
+ARG BASE_IMAGE=rust:1.93.1-slim-trixie
+
+# Prepare a recipe.json using cargo chef in its own layer
+FROM ${BASE_IMAGE} AS chef
+RUN cargo install cargo-chef --locked
+WORKDIR /app
+COPY . .
+RUN cargo chef prepare --recipe-path recipe.json
+
+# Build 
+FROM ${BASE_IMAGE} AS builder
 
 WORKDIR /app
 
 RUN apt-get update && apt-get install -y \
     libpq-dev \
     pkg-config \
+    libfontconfig-dev \
     libssl-dev \
     && rm -rf /var/lib/apt/lists/*
 
+RUN cargo install cargo-chef --locked
+RUN cargo install sccache --locked
+ENV RUSTC_WRAPPER=sccache
+ENV SCCACHE_DIR=/sccache
+ENV SCCACHE_SERVER_UDS=/tmp/sccache.sock
+ENV CARGO_INCREMENTAL=0
+
 COPY Cargo.toml Cargo.lock ./
+COPY frontend/Cargo.toml frontend/Cargo.toml
 COPY backend/Cargo.toml backend/Cargo.toml
-COPY frontend ./frontend
+COPY --from=chef /app/recipe.json recipe.json
+
+RUN --mount=type=cache,id=sentience-cargo-registry,target=/usr/local/cargo/registry \
+    --mount=type=cache,id=sentience-cargo-git,target=/usr/local/cargo/git \
+    --mount=type=cache,id=sentience-sccache,target=/sccache \
+    --mount=type=cache,id=sentience-target-chef,target=/app/target,sharing=locked \
+    cargo chef cook --release --recipe-path recipe.json && \
+    sccache --show-stats
+
+COPY frontend/src frontend/src
 
 WORKDIR /app/frontend
 
@@ -26,7 +54,7 @@ RUN apt-get update && apt-get install -y \
 
 WORKDIR /app
 
-COPY --from=builder /app/frontend/target/release/syl-scr-bot /usr/local/bin/syl-scr-bot
+COPY --from=builder /app/target/release/syl-scr-bot /usr/local/bin/syl-scr-bot
 
 ENV RUST_LOG=INFO
 
