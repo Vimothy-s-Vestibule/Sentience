@@ -1,3 +1,4 @@
+use crossterm::event::KeyCode;
 use ratatui::{
     layout::{Constraint, Direction, Layout},
     style::{Color, Modifier, Style},
@@ -5,12 +6,12 @@ use ratatui::{
     widgets::{Block, Borders, Gauge, List, ListItem, ListState, Paragraph, Wrap},
 };
 use tui_logger::{TuiLoggerLevelOutput, TuiLoggerWidget};
-use crossterm::event::KeyCode;
 
 use syl_scr::DiscordMessage;
 use syl_scr::RecordStatus;
 use syl_scr::VestibuleUserRecord;
 
+#[allow(clippy::large_enum_variant)]
 pub enum AppEvent {
     Init(Vec<(VestibuleUserRecord, DiscordMessage)>),
     NewPending(Vec<(VestibuleUserRecord, DiscordMessage)>),

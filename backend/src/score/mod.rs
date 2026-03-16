@@ -7,7 +7,6 @@ pub trait MessageScorer {
         &self,
         client: &reqwest::Client,
         model: &str,
-        username: &str,
         user_id: &str,
         content: &str,
     ) -> impl std::future::Future<Output = Result<VestibuleUserRecord, crate::AppError>> + Send;

@@ -54,7 +54,7 @@ pub fn generate_personality_chart(
             }
             points.push(points[0]);
 
-            root.draw(&PathElement::new(points, &RGBColor(200, 200, 200)))?;
+            root.draw(&PathElement::new(points, RGBColor(200, 200, 200)))?;
         }
 
         // Draw axis lines + labels

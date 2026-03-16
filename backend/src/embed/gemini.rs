@@ -22,12 +22,12 @@ impl GeminiMessageEmbedder {
 }
 
 impl MessageEmbedder for GeminiMessageEmbedder {
-    #[instrument(skip_all, fields(username = _username, content = %crate::truncate_chars(text, 10), resp_status = tracing::field::Empty))]
+    #[instrument(skip_all, fields(user_id = _user_id, content = %crate::truncate_chars(text, 10), resp_status = tracing::field::Empty))]
     async fn embed_text(
         &self,
         text: &str,
         client: &reqwest::Client,
-        _username: &str,
+        _user_id: &str,
     ) -> Result<Vec<f32>, AppError> {
         let cleaned = text.replace('\n', "");
         let cleaned = cleaned.trim();

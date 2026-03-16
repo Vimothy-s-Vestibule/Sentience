@@ -3411,8 +3411,8 @@ dependencies = [
 
 [[package]]
 name = "syl-scr-common"
-version = "0.1.0"
-source = "git+https://github.com/Vimothy-s-Vestibule/unidb-schema#43e93712638ca58d6716beb28b9cb1d4591cf041"
+version = "0.1.3"
+source = "git+https://github.com/Vimothy-s-Vestibule/unidb-schema#279da27694fc1036e0fa9d63c1512e2d0f5ff615"
 dependencies = [
  "chrono",
  "diesel",

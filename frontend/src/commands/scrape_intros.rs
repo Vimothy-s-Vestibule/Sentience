@@ -110,7 +110,6 @@ pub async fn run(
                 let username = user_names.get(&author_id).cloned().unwrap_or_default();
 
                 let discord_msg = DiscordMessage {
-                    username: username.clone(),
                     user_id: author_id.get().to_string(),
                     content: message.content.clone(),
                     message_id: message.id.get().to_string(),

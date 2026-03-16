@@ -7,6 +7,6 @@ pub trait MessageEmbedder {
         &self,
         text: &str,
         client: &reqwest::Client,
-        _username: &str,
+        _user_id: &str,
     ) -> impl std::future::Future<Output = Result<Vec<f32>, AppError>> + Send;
 }

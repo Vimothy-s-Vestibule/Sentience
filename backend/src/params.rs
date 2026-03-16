@@ -5,10 +5,9 @@ use thiserror::Error;
 pub const OPENAI_MODEL: &str = "gpt-5-nano";
 pub const OPENAI_SYSTEM_MSG: &str = "You analyze short self-introduction messages for social compatibility research. Goal: Extract probabilistic psychological and communication signals from the introduction text.";
 
-pub fn build_user_prompt(username: &str, introduction_text: &str, user_id: &str) -> String {
+pub fn build_user_prompt(introduction_text: &str, user_id: &str) -> String {
     format!(
-        "<username>\n{username}\n</username>\n<user_id>\n{user_id}\n</user_id>\n\n<introduction_text>\n{intro}\n</introduction_text>",
-        username = username,
+        "<user_id>\n{user_id}\n</user_id>\n\n<introduction_text>\n{intro}\n</introduction_text>",
         intro = introduction_text
     )
 }

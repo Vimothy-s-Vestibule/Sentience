@@ -19,12 +19,11 @@ impl GeminiMessageScorer {
 }
 
 impl MessageScorer for GeminiMessageScorer {
-    #[instrument(skip_all, fields(username = username, content = %crate::truncate_chars(content, 10), resp_status = tracing::field::Empty))]
+    #[instrument(skip_all, fields(user_id = user_id, content = %crate::truncate_chars(content, 10), resp_status = tracing::field::Empty))]
     async fn score_message(
         &self,
         client: &reqwest::Client,
         model: &str,
-        username: &str,
         user_id: &str,
         content: &str,
     ) -> Result<crate::VestibuleUserRecord, AppError> {
@@ -36,7 +35,7 @@ impl MessageScorer for GeminiMessageScorer {
         }
 
         let schema = build_gemini_json_schema();
-        let user_prompt = build_user_prompt(username, content, user_id);
+        let user_prompt = build_user_prompt(content, user_id);
 
         let body = json!({
             "systemInstruction": {

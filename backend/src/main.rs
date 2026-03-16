@@ -217,7 +217,7 @@ async fn run_worker(tx: mpsc::UnboundedSender<AppEvent>) -> Result<(), syl_scr::
 
 #[tracing::instrument(
     skip_all,
-    fields(user_id = %msg.user_id, username = %msg.username)
+    fields(user_id = %msg.user_id, username = %msg.user_id)
 )]
 async fn process_message(
     scorer: &impl MessageScorer,
@@ -226,17 +226,11 @@ async fn process_message(
     msg: &DiscordMessage,
 ) -> Result<VestibuleUserRecord, AppError> {
     let mut score: VestibuleUserRecord = scorer
-        .score_message(
-            client,
-            "gemini-2.5-flash",
-            &msg.username,
-            &msg.user_id,
-            &msg.content,
-        )
+        .score_message(client, "gemini-2.5-flash", &msg.user_id, &msg.content)
         .await?;
 
     let embedding = embedder
-        .embed_text(&msg.content, client, &msg.username)
+        .embed_text(&msg.content, client, &msg.user_id)
         .await?;
 
     score.intro_embedding = Some(pgvector::Vector::from(embedding));

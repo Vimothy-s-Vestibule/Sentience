@@ -26,7 +26,6 @@ pub async fn insert_introduction_message(
 
     let empty_user = VestibuleUserRecord {
         discord_user_id: message.user_id.clone(),
-        discord_username: message.username.clone(),
         intro_message_id: Some(message.message_id.clone()),
         status: RecordStatus::Pending,
         ..Default::default()
