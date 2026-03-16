@@ -9,7 +9,6 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/*
 
 COPY Cargo.toml Cargo.lock ./
-COPY common ./common
 COPY frontend ./frontend
 
 WORKDIR /app/frontend
