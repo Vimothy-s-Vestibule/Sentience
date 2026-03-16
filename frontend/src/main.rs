@@ -67,6 +67,7 @@ async fn main() -> Result<(), AppError> {
         .await
         .map_err(|e| AppError::AppError(Box::new(e)))?;
 
+    tokio::fs::write("/etc/ready", "1").await?;
     if let Err(why) = client.start().await {
         tracing::error!("Client error: {}", why);
     }
