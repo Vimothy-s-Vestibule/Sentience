@@ -1,0 +1,13 @@
+{{/*
+discord environment variables template
+*/}}
+{{- define "platformjam.discord-env" -}}
+- name: DISCORD_TOKEN
+{{ tpl (toYaml .Values.discord.token) . | indent 2 }}
+- name: GUILD_ID
+{{ tpl (toYaml .Values.discord.guildId) . | indent 2 }}
+- name: SCRAPER_ROLE_ID
+{{ tpl (toYaml .Values.discord.scraperRoleId) . | indent 2 }}
+- name: DISCORD_INTRO_CHANNEL_ID
+{{ tpl (toYaml .Values.discord.introChannelId) . | indent 2 }}
+{{- end -}}

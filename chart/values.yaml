@@ -5,7 +5,28 @@ postgres:
     valueFrom:
       secretKeyRef:
         name: postgres-cred
-        key: connection_string
+        key: connectionString
+discord: 
+  token: 
+    valueFrom:
+      secretKeyRef:
+        name: discord-cred 
+        key: token
+  guildId: 
+    valueFrom:
+      secretKeyRef:
+        name: discord-cred 
+        key: guildId
+  scraperRoleId: 
+    valueFrom:
+      secretKeyRef:
+        name: discord-cred 
+        key: scraperRoleId
+  introChannelId: 
+    valueFrom:
+      secretKeyRef:
+        name: discord-cred 
+        key: introChannelId
 
 frontend:
   image: sylvanfranklin/sentience-frontend
