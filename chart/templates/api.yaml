@@ -1,0 +1,91 @@
+{{- $image := printf "%s%s" .Values.registry .Values.api.image -}}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}-api
+spec:
+  replicas: {{ .Values.api.replicas }}
+  selector:
+    matchLabels:
+      app: {{ .Release.Name }}-api
+  template:
+    metadata:
+      labels:
+        app: {{ .Release.Name }}-api
+    spec:
+    {{- if .Values.imagePullSecrets }}
+      imagePullSecrets:
+{{ toYaml .Values.imagePullSecrets | indent 10 }}
+    {{- end }}
+      volumes:
+      - name: data
+        emptyDir: {}
+      initContainers:
+      - name: download-yt-comments-db
+        image: amazon/aws-cli:2.15.32
+        env:
+        - name: S3_BUCKET
+          value: {{ .Values.s3.bucket | quote }}
+        - name: S3_REGION
+          value: {{ .Values.s3.region | quote }}
+        - name: S3_ENDPOINT
+          value: {{ .Values.s3.endpoint | quote }}
+        - name: AWS_ACCESS_KEY_ID
+{{ tpl (toYaml .Values.s3.access_key_id) . | indent 10 }}
+        - name: AWS_SECRET_ACCESS_KEY
+{{ tpl (toYaml .Values.s3.secret_access_key) . | indent 10 }}
+        command:
+        - sh
+        - -c
+        - |
+          set -euo pipefail
+          echo "endpoint: $S3_ENDPOINT, region: $S3_REGION, bucket: $S3_BUCKET"; \
+          aws --region "$S3_REGION" \
+              --endpoint "$S3_ENDPOINT" \
+              s3 cp "s3://$S3_BUCKET/yt_comments.db" /data/yt_comments.db
+        volumeMounts:
+          - name: data
+            mountPath: /data
+      containers:
+      - name: api
+        imagePullPolicy: {{ .Values.api.imagePullPolicy }}
+        image: {{ $image }}
+    {{- if .Values.api.resources }}
+        resources:
+{{ toYaml .Values.api.resources | indent 10 }}
+    {{- end }}
+        ports:
+        - containerPort: 1984
+          protocol: TCP
+          name: http
+        readinessProbe:
+          httpGet:
+            path: /readyz
+            port: 1984
+        livenessProbe:
+          httpGet:
+            path: /healthz
+            port: 1984
+        volumeMounts:
+        - name: data
+          mountPath: /data
+        env:
+{{ include "1984bot.cors-env" . | indent 8 }}
+{{ include "1984bot.keycloak-env" . | indent 8 }}
+        - name: DATABASE_PATH
+          value: "/data/yt_comments.db"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Release.Name }}-api
+  labels:
+    app: {{ .Release.Name }}-api
+spec:
+  type: ClusterIP
+  selector:
+    app: {{ .Release.Name }}-api
+  ports:
+  - name: http
+    port: 1984
+    targetPort: 1984

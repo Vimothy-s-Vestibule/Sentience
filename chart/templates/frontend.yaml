@@ -1,0 +1,43 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}-frontend
+spec:
+  replicas: {{ .Values.frontend.replicas}}
+  selector:
+    matchLabels:
+      app: {{ .Release.Name }}-frontend
+  template:
+    metadata:
+      labels:
+        app: {{ .Release.Name }}-frontend
+    spec:
+      restartPolicy: Always
+      containers:
+      - name: frontend
+        imagePullPolicy: {{ .Values.frontend.imagePullPolicy }}
+        image: {{ .Values.frontend.image }}
+    {{- if .Values.frontend.resources }}
+        resources:
+{{ toYaml .Values.frontend.resources | indent 10 }}
+    {{- end }}
+        ports:
+        - containerPort: 8080
+          name: http
+        env:
+        - name: API_ENDPOINT
+          value: {{ .Values.apiEndpoint | quote }}
+        - name: IAM_PUBLIC_ENDPOINT
+          value: {{ .Values.iamEndpoint | quote }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Release.Name }}-frontend
+spec:
+  selector:
+    app: {{ .Release.Name }}-frontend
+  ports:
+    - port: 80
+      targetPort: 8080
+
