@@ -82,7 +82,9 @@ async fn main() -> color_eyre::Result<()> {
     });
 
     let mut app = App::new();
-    tokio::fs::write("/etc/ready", "1").await?;
+    tokio::fs::write("/etc/ready", "1")
+        .await
+        .map_err(|e| AppError::AppError(Box::new(e)))?;
     // Main TUI loop
     loop {
         terminal.draw(|f| draw_ui(f, &mut app))?;

@@ -67,7 +67,9 @@ async fn main() -> Result<(), AppError> {
         .await
         .map_err(|e| AppError::AppError(Box::new(e)))?;
 
-    tokio::fs::write("/etc/ready", "1").await?;
+    tokio::fs::write("/etc/ready", "1")
+        .await
+        .map_err(|e| AppError::AppError(Box::new(e)))?;
     if let Err(why) = client.start().await {
         tracing::error!("Client error: {}", why);
     }
@@ -76,9 +78,7 @@ async fn main() -> Result<(), AppError> {
 }
 
 use serenity::async_trait;
-use serenity::builder::{
-    EditInteractionResponse, CreateAttachment,
-};
+use serenity::builder::{CreateAttachment, EditInteractionResponse};
 use serenity::model::application::Interaction;
 use serenity::model::gateway::Ready;
 use serenity::model::id::GuildId;
@@ -107,7 +107,7 @@ impl EventHandler for Handler {
             command.user.id,
         );
 
-        // Discord requires a response within 3 seconds. 
+        // Discord requires a response within 3 seconds.
         // Defer immediately so long-running commands (like scrape_intros) don't timeout.
         if let Err(why) = command.defer(&ctx.http).await {
             tracing::warn!("Cannot defer slash command: {}", why);
@@ -133,13 +133,7 @@ impl EventHandler for Handler {
                 .await
             }
             "my_diagram" => {
-                commands::my_diagram::run(
-                    &ctx,
-                    &options,
-                    command_user_id,
-                    &self.pool,
-                )
-                .await
+                commands::my_diagram::run(&ctx, &options, command_user_id, &self.pool).await
             }
 
             _ => Ok(("not implemented".to_string(), None)),
@@ -149,21 +143,21 @@ impl EventHandler for Handler {
             Ok((c, bytes)) => (c, bytes),
             Err(e) => {
                 tracing::error!("Command '{}' failed: {}", command.data.name, e);
-                ("An error occurred. Please try again later.".to_string(), None)
+                (
+                    "An error occurred. Please try again later.".to_string(),
+                    None,
+                )
             }
         };
 
         let mut edit_response = EditInteractionResponse::new().content(content);
-        
+
         if let Some(bytes) = attachment_bytes {
             let attachment = CreateAttachment::bytes(bytes, "diagram.png");
             edit_response = edit_response.new_attachment(attachment);
         }
 
-        if let Err(why) = command
-            .edit_response(&ctx.http, edit_response)
-            .await
-        {
+        if let Err(why) = command.edit_response(&ctx.http, edit_response).await {
             tracing::warn!("Cannot edit deferred response: {}", why);
         }
     }
@@ -177,7 +171,13 @@ impl EventHandler for Handler {
         );
 
         let _commands = guild_id
-            .set_commands(&ctx.http, vec![commands::scrape_intros::register(), commands::my_diagram::register()])
+            .set_commands(
+                &ctx.http,
+                vec![
+                    commands::scrape_intros::register(),
+                    commands::my_diagram::register(),
+                ],
+            )
             .await
             .map_err(AppError::SerenityError)
             .inspect_err(|e| tracing::error!("Failed to register slash commands: {e}"));
