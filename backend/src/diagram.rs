@@ -58,7 +58,7 @@ pub fn generate_personality_chart(
         }
 
         // Draw axis lines + labels
-        for i in 0..n {
+        for (i, trait_name) in traits.iter().enumerate() {
             let angle = 2.0 * PI * (i as f64) / (n as f64) - PI / 2.0;
 
             let x = center.0 as f64 + radius * angle.cos();
@@ -70,7 +70,7 @@ pub fn generate_personality_chart(
             let label_y = center.1 as f64 + (radius + 30.0) * angle.sin();
 
             root.draw(&Text::new(
-                traits[i],
+                *trait_name,
                 (label_x as i32, label_y as i32),
                 ("sans-serif", 20).into_font(),
             ))?;
@@ -78,9 +78,9 @@ pub fn generate_personality_chart(
 
         // Compute radar polygon
         let mut data_points = Vec::new();
-        for i in 0..n {
+        for (i, value) in values.iter().enumerate() {
             let angle = 2.0 * PI * (i as f64) / (n as f64) - PI / 2.0;
-            let r = radius * values[i];
+            let r = radius * value;
 
             let x = center.0 as f64 + r * angle.cos();
             let y = center.1 as f64 + r * angle.sin();
@@ -91,7 +91,7 @@ pub fn generate_personality_chart(
 
         root.draw(&Polygon::new(data_points.clone(), BLUE.mix(0.4).filled()))?;
 
-        root.draw(&PathElement::new(data_points, &BLUE))?;
+        root.draw(&PathElement::new(data_points, BLUE))?;
 
         root.present()?;
     }
