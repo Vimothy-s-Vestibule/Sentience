@@ -1,7 +1,7 @@
 {{/*
 discord environment variables template
 */}}
-{{- define "platformjam.discord-env" -}}
+{{- define "sentience.discord-env" -}}
 - name: DISCORD_TOKEN
 {{ tpl (toYaml .Values.discord.token) . | indent 2 }}
 - name: GUILD_ID
